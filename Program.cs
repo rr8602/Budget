@@ -92,3 +92,5 @@ app.MapPost("/api/receipts/upload", async (IFormFile file, IWebHostEnvironment e
 .DisableAntiforgery();
 
 app.Run();
+
+public partial class Program { }
