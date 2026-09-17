@@ -1,0 +1,124 @@
+@* 할부 추가/수정 다이얼로그 *@
+
+<MudDialog Style="min-width:420px;max-width:480px;">
+    <TitleContent>
+        <div style="display:flex;align-items:center;gap:14px;">
+            <div class="inst-dialog-icon-wrap">
+                <MudIcon Icon="@Icons.Material.Filled.CreditCard"
+                         Style="color:white;font-size:22px;" />
+            </div>
+            <div>
+                <div class="inst-dialog-overline">
+                    @(Model is null ? "NEW INSTALLMENT" : "EDIT INSTALLMENT")
+                </div>
+                <div class="inst-dialog-title">
+                    @(Model is null ? "할부 추가" : "할부 수정")
+                </div>
+            </div>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <div style="display:flex;flex-direction:column;gap:14px;padding-top:4px;">
+
+            <MudTextField Label="항목명" @bind-Value="_model.Name"
+                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Placeholder="예: 아이폰 16 Pro"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Outlined.ShoppingBag" />
+
+            <MudTextField Label="결제카드" @bind-Value="_model.Card"
+                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Placeholder="예: 신한카드"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Outlined.CreditCard" />
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <MudNumericField T="decimal" Label="총 금액"
+                                 Value="_model.TotalAmount"
+                                 ValueChanged="v => _model.TotalAmount = v"
+                                 Format="N0" HideSpinButtons="true"
+                                 Adornment="Adornment.End" AdornmentText="원"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudNumericField T="int" Label="할부 개월"
+                                 Value="_model.Months"
+                                 ValueChanged="v => _model.Months = v"
+                                 HideSpinButtons="true"
+                                 Adornment="Adornment.End" AdornmentText="개월"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </div>
+
+            <MudDatePicker Label="마지막 납입월"
+                           Date="_lastPayDateTime"
+                           DateChanged="OnDateChanged"
+                           OpenTo="OpenTo.Month"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" />
+
+            @* 월 납입 미리보기 *@
+            @if (_model.Months > 0 && _model.TotalAmount > 0)
+            {
+                var monthly = _model.TotalAmount / _model.Months;
+                <div class="inst-dialog-preview">
+                    <div class="inst-dialog-preview-label">월 납입액</div>
+                    <div class="inst-dialog-preview-amount">
+                        @monthly.ToString("N0")<span class="inst-dialog-preview-unit">원</span>
+                    </div>
+                    <div class="inst-dialog-preview-sub">
+                        총 @_model.TotalAmount.ToString("N0")원 · @(_model.Months)개월 할부
+                    </div>
+                </div>
+            }
+
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">취소</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(!IsValid)" OnClick="Submit">
+            저장
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter]          public Installment? Model    { get; set; }
+
+    private Installment _model           = new();
+    private DateTime?   _lastPayDateTime;
+
+    protected override void OnInitialized()
+    {
+        if (Model is not null)
+        {
+            _model = new Installment
+            {
+                Id          = Model.Id,
+                Name        = Model.Name,
+                Card        = Model.Card,
+                TotalAmount = Model.TotalAmount,
+                Months      = Model.Months,
+                LastPayDate = Model.LastPayDate
+            };
+        }
+        else
+        {
+            _model.LastPayDate = DateOnly.FromDateTime(DateTime.Today);
+        }
+        _lastPayDateTime = _model.LastPayDate.ToDateTime(TimeOnly.MinValue);
+    }
+
+    private void OnDateChanged(DateTime? dt)
+    {
+        _lastPayDateTime = dt;
+        if (dt.HasValue)
+            _model.LastPayDate = DateOnly.FromDateTime(dt.Value);
+    }
+
+    private bool IsValid =>
+        !string.IsNullOrWhiteSpace(_model.Name) &&
+        _model.TotalAmount > 0 &&
+        _model.Months > 0;
+
+    private void Cancel() => MudDialog.Cancel();
+    private void Submit() => MudDialog.Close(DialogResult.Ok(_model));
+}

@@ -1,0 +1,410 @@
+@page "/"
+@rendermode InteractiveServer
+@inject EntryService     EntryService
+@inject BudgetService    BudgetService
+@inject FixedItemService FixedItemSvc
+@inject NavigationManager Nav
+
+<PageTitle>대시보드 · 우리집 가계부</PageTitle>
+
+@* ── 페이지 헤더 ── *@
+<div class="dash-header">
+    <div>
+        <div class="dash-overline">MONTHLY OVERVIEW · @(_year)</div>
+        <div class="dash-title-row">
+            <h1 class="dash-title">@(_month)월의 가계부</h1>
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft"
+                           Size="Size.Small" OnClick="PrevMonth" />
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
+                           Size="Size.Small" OnClick="NextMonth" Disabled="@IsCurrentMonth" />
+        </div>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick='() => Nav.NavigateTo("/entries/new")'>
+        지출 입력
+    </MudButton>
+</div>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Rounded="true" Class="mb-4" />
+}
+
+@* ── 상단 요약 카드 3개 ── *@
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-label">이번달 총 지출</div>
+        <div class="stat-num">@_totalActual.ToString("N0")<span class="stat-unit">원</span></div>
+        <div class="stat-sub">변동 @(_entries.Sum(e=>e.Amount).ToString("N0"))원 + 고정비 @_fixedTotal.ToString("N0")원</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">이번달 예산</div>
+        <div class="stat-num">@_totalBudget.ToString("N0")<span class="stat-unit">원</span></div>
+        <div class="stat-sub">사용률 @_budgetUsagePct.ToString("F0")%</div>
+    </div>
+    <div class="stat-card @(TotalRemaining < 0 ? "stat-card-danger" : "stat-card-accent")">
+        <div class="stat-label">남은 예산</div>
+        <div class="stat-num">@TotalRemaining.ToString("N0")<span class="stat-unit">원</span></div>
+        <div class="stat-sub">@(TotalRemaining >= 0 ? "예산 내 지출 중" : "예산 초과")</div>
+    </div>
+</div>
+
+@* ── 인앱 경고 칩 ── *@
+@if (!_loading)
+{
+    var overBudget  = _budgetStatuses.Where(s => s.IsOverBudget).ToList();
+    var warnBudget  = _budgetStatuses.Where(s => s.IsWarning && !s.IsOverBudget).ToList();
+    var unconfirmed = _fixedStatuses.Count(s => s.IsUnconfirmed);
+    var shortfall   = _fixedStatuses.Count(s => s.IsShortfall);
+
+    @if (overBudget.Any() || unconfirmed > 0 || shortfall > 0)
+    {
+        var parts = new List<string>();
+        if (unconfirmed > 0)  parts.Add($"고정비 미확인 {unconfirmed}건");
+        if (shortfall > 0)    parts.Add($"고정비 미달 {shortfall}건");
+        if (overBudget.Any()) parts.Add($"예산 초과 {overBudget.Count}건");
+
+        <div class="alert-chip alert-chip-danger mb-4"
+             @onclick='() => Nav.NavigateTo("/budget#fixed-confirmation")'>
+            <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Style="font-size:18px;" />
+            <span>@string.Join(" · ", parts)</span>
+            <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Style="font-size:18px;" />
+        </div>
+    }
+
+    @if (warnBudget.Any())
+    {
+        <div class="alert-chip alert-chip-warn mb-4"
+             @onclick='() => Nav.NavigateTo("/budget")'>
+            <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Style="font-size:18px;" />
+            <span>예산 80% 이상 사용 중 @(warnBudget.Count)건</span>
+            <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Style="font-size:18px;" />
+        </div>
+    }
+}
+
+@* ── 메인 2패널 레이아웃 ── *@
+<div class="dash-panels">
+
+    @* ── 왼쪽: 지출 내역 ── *@
+    <div class="dash-panel-main">
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">이달 지출 내역</span>
+                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                           OnClick='() => Nav.NavigateTo("/entries")'>전체보기</MudButton>
+            </div>
+
+            @if (_entries.Any())
+            {
+                <div class="entry-table">
+                    <div class="entry-row entry-row-header">
+                        <span>날짜</span>
+                        <span>내용</span>
+                        <span class="hide-sm">카테고리</span>
+                        <span class="col-right">금액</span>
+                    </div>
+                    @foreach (var e in _entries.Take(15))
+                    {
+                        <div class="entry-row entry-row-body"
+                             @onclick='() => Nav.NavigateTo($"/entries/{e.Id}/edit")'>
+                            <span class="entry-date">@e.Date.ToString("M/d")</span>
+                            <span class="entry-content">
+                                <b>@e.Content</b>
+                                <small>@e.Payer?.Name</small>
+                            </span>
+                            <span class="entry-cat hide-sm">
+                                <span class="cat-chip" style="@GetCatStyle(e.Category?.ParentName)">
+                                    @e.Category?.ParentName
+                                </span>
+                            </span>
+                            <span class="entry-amount">@e.Amount.ToString("N0")원</span>
+                        </div>
+                    }
+                </div>
+            }
+            else if (!_loading)
+            {
+                <div class="empty-state">이달 지출 내역이 없습니다.</div>
+            }
+        </div>
+
+        @if (_lineLabels.Length > 0)
+        {
+            <div class="panel mt-panel">
+                <div class="panel-header">
+                    <span class="panel-title">일별 누적 지출</span>
+                </div>
+                <ChartJs Type="line" Labels="@_lineLabels" Datasets="@_lineDatasets"
+                         Style="max-height:155px;" />
+            </div>
+        }
+    </div>
+
+    @* ── 오른쪽: 카테고리별 지출 + 예산 현황 ── *@
+    <div class="dash-panel-side">
+        @if (_categoryLabels.Length > 0)
+        {
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">카테고리별 지출</span>
+                </div>
+                <ChartJs Type="doughnut" Labels="@_categoryLabels"
+                         Datasets="@_categoryDatasets"
+                         Style="max-height:180px;margin-bottom:4px;" />
+            </div>
+        }
+
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">예산 현황</span>
+                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                           OnClick='() => Nav.NavigateTo("/budget")'>관리</MudButton>
+            </div>
+
+            @if (_budgetStatuses.Any())
+            {
+                @foreach (var s in _budgetStatuses.Take(7))
+                {
+                    <div class="budget-item">
+                        <div class="budget-item-top">
+                            <span class="budget-name">@s.CategoryParentName</span>
+                            <span class="budget-pct @BudgetPctClass(s)">@s.Percentage.ToString("F0")%</span>
+                        </div>
+                        <MudProgressLinear Value="@(Math.Min(s.Percentage, 100))"
+                                           Color="@StatusColor(s)"
+                                           Rounded="true" Size="Size.Small" />
+                        <div class="budget-item-sub">
+                            @s.Actual.ToString("N0")원 / @s.Budget.ToString("N0")원
+                        </div>
+                    </div>
+                }
+            }
+            else if (!_loading)
+            {
+                <div class="empty-state">예산이 설정되지 않았습니다.</div>
+            }
+        </div>
+    </div>
+
+</div>
+
+@* ── 이달 소비 인사이트 ── *@
+@if (!_loading)
+{
+    <div class="insight-grid">
+        <div class="panel insight-card">
+            <div class="insight-icon-wrap insight-blue">
+                <MudIcon Icon="@Icons.Material.Outlined.CalendarToday"
+                         Style="font-size:20px;" />
+            </div>
+            <div class="insight-info">
+                <div class="insight-label">일 평균 지출</div>
+                <div class="insight-value">@_avgDailySpend.ToString("N0")원</div>
+                <div class="insight-sub">하루 평균 소비</div>
+            </div>
+        </div>
+
+        <div class="panel insight-card">
+            <div class="insight-icon-wrap insight-purple">
+                <MudIcon Icon="@Icons.Material.Outlined.Category"
+                         Style="font-size:20px;" />
+            </div>
+            <div class="insight-info">
+                <div class="insight-label">최다 지출 카테고리</div>
+                <div class="insight-value">@(_topCatName.Length > 0 ? _topCatName : "—")</div>
+                <div class="insight-sub">전체의 @_topCatPct.ToString("F0")%</div>
+            </div>
+        </div>
+
+        <div class="panel insight-card">
+            <div class="insight-icon-wrap insight-amber">
+                <MudIcon Icon="@Icons.Material.Outlined.Whatshot"
+                         Style="font-size:20px;" />
+            </div>
+            <div class="insight-info">
+                <div class="insight-label">가장 많이 쓴 날</div>
+                <div class="insight-value">@(_busiestDay > 0 ? $"{_busiestDay}일" : "—")</div>
+                <div class="insight-sub">
+                    @(_busiestDayAmount > 0 ? _busiestDayAmount.ToString("N0") + "원" : "")
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private int  _year  = DateTime.Today.Year;
+    private int  _month = DateTime.Today.Month;
+    private bool _loading = true;
+
+    private decimal _totalActual;
+    private decimal _fixedTotal;
+    private decimal _totalBudget;
+    private double  _budgetUsagePct;
+
+    private List<BudgetStatus>      _budgetStatuses = [];
+    private List<Entry>             _entries        = [];
+    private List<FixedActualStatus> _fixedStatuses  = [];
+
+    // 인사이트
+    private decimal _avgDailySpend;
+    private string  _topCatName   = "";
+    private decimal _topCatPct;
+    private int     _busiestDay;
+    private decimal _busiestDayAmount;
+
+    private string[] _categoryLabels   = [];
+    private object[] _categoryDatasets = [];
+    private string[] _lineLabels       = [];
+    private object[] _lineDatasets     = [];
+
+    private static readonly string[] Palette =
+    [
+        "#6C63FF","#FF6B6B","#22C55E","#F59E0B","#3B82F6",
+        "#EC4899","#14B8A6","#8B5CF6","#F97316","#06B6D4",
+        "#84CC16","#A78BFA","#FB7185","#34D399","#FBBF24"
+    ];
+    private readonly Dictionary<string, string> _colorMap = [];
+
+    private decimal TotalRemaining  => _totalBudget - _totalActual;
+    private bool    IsCurrentMonth  => _year == DateTime.Today.Year && _month == DateTime.Today.Month;
+
+    private Color  StatusColor(BudgetStatus s)  =>
+        s.IsOverBudget ? Color.Error : s.IsWarning ? Color.Warning : Color.Primary;
+
+    private string BudgetPctClass(BudgetStatus s) =>
+        s.IsOverBudget ? "over" : s.IsWarning ? "warn" : "";
+
+    private string GetCatStyle(string? cat)
+    {
+        var c = (cat is not null && _colorMap.TryGetValue(cat, out var v)) ? v : "#9E9E9E";
+        return $"background:{c}22;color:{c};";
+    }
+
+    protected override async Task OnInitializedAsync() => await LoadDataAsync();
+
+    private async Task PrevMonth()
+    {
+        if (_month == 1) { _year--; _month = 12; } else _month--;
+        await LoadDataAsync();
+    }
+
+    private async Task NextMonth()
+    {
+        if (IsCurrentMonth) return;
+        if (_month == 12) { _year++; _month = 1; } else _month++;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        _entries        = await EntryService.GetMonthlyAsync(_year, _month);
+        _budgetStatuses = await BudgetService.GetBudgetStatusAsync(_year, _month);
+        var byCategory  = await EntryService.GetMonthlyTotalByCategoryAsync(_year, _month);
+        var cumulative  = await EntryService.GetDailyCumulativeAsync(_year, _month);
+
+        _fixedStatuses  = await FixedItemSvc.GetShortfallStatusAsync(_year, _month);
+        _fixedTotal     = await FixedItemSvc.GetTotalAsync();
+        _totalActual    = _entries.Sum(e => e.Amount) + _fixedTotal;
+        _totalBudget    = _budgetStatuses.Sum(s => s.Budget);
+        _budgetUsagePct = _totalBudget > 0
+            ? Math.Min((double)(_totalActual / _totalBudget * 100), 200) : 0;
+
+        AssignColors(byCategory.Keys);
+        BuildCategoryChart(byCategory);
+        BuildLineChart(cumulative);
+        ComputeInsights();
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void AssignColors(IEnumerable<string> keys)
+    {
+        var idx = 0;
+        foreach (var cat in keys)
+        {
+            if (!_colorMap.ContainsKey(cat))
+                _colorMap[cat] = Palette[idx % Palette.Length];
+            idx++;
+        }
+    }
+
+    private void BuildCategoryChart(Dictionary<string, decimal> data)
+    {
+        if (!data.Any()) { _categoryLabels = []; _categoryDatasets = []; return; }
+        _categoryLabels = [.. data.Keys];
+        _categoryDatasets =
+        [
+            new
+            {
+                data            = data.Values.Select(v => (double)v).ToArray(),
+                backgroundColor = _categoryLabels
+                    .Select(k => _colorMap.TryGetValue(k, out var c) ? c : "#9E9E9E").ToArray(),
+                borderWidth     = 0,
+                hoverOffset     = 6
+            }
+        ];
+    }
+
+    private void BuildLineChart(Dictionary<int, decimal> cumulative)
+    {
+        if (cumulative.Values.All(v => v == 0)) { _lineLabels = []; _lineDatasets = []; return; }
+        int days = IsCurrentMonth ? DateTime.Today.Day : DateTime.DaysInMonth(_year, _month);
+        _lineLabels = Enumerable.Range(1, days).Select(d => $"{d}").ToArray();
+        _lineDatasets =
+        [
+            new
+            {
+                label           = "누적 지출",
+                data            = Enumerable.Range(1, days)
+                    .Select(d => (double)cumulative.GetValueOrDefault(d)).ToArray(),
+                borderColor     = "#6C63FF",
+                backgroundColor = "rgba(108,99,255,0.08)",
+                fill            = true,
+                tension         = 0.4,
+                pointRadius     = 0,
+                pointHoverRadius = 5,
+                borderWidth     = 2.5
+            }
+        ];
+    }
+
+    private void ComputeInsights()
+    {
+        if (!_entries.Any()) return;
+
+        // 일 평균 (변동 + 고정 합산)
+        var daysSoFar = IsCurrentMonth ? DateTime.Today.Day : DateTime.DaysInMonth(_year, _month);
+        _avgDailySpend = daysSoFar > 0 ? _totalActual / daysSoFar : 0;
+
+        // 최다 카테고리 (변동 지출 기준)
+        var entriesSum = _entries.Sum(e => e.Amount);
+        var topCat = _entries
+            .GroupBy(e => e.Category?.ParentName ?? "기타")
+            .OrderByDescending(g => g.Sum(e => e.Amount))
+            .FirstOrDefault();
+        if (topCat is not null)
+        {
+            _topCatName = topCat.Key;
+            _topCatPct  = entriesSum > 0
+                ? topCat.Sum(e => e.Amount) / entriesSum * 100 : 0;
+        }
+
+        // 가장 많이 쓴 날
+        var topDay = _entries
+            .GroupBy(e => e.Date.Day)
+            .OrderByDescending(g => g.Sum(e => e.Amount))
+            .FirstOrDefault();
+        if (topDay is not null)
+        {
+            _busiestDay       = topDay.Key;
+            _busiestDayAmount = topDay.Sum(e => e.Amount);
+        }
+    }
+}

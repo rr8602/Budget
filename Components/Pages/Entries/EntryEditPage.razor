@@ -1,0 +1,159 @@
+@page "/entries/{Id:guid}/edit"
+@rendermode InteractiveServer
+@inject EntryService         EntrySvc
+@inject LookupService        LookupSvc
+@inject NavigationManager    Nav
+@inject ISnackbar            Snackbar
+@inject IWebHostEnvironment  Env
+
+<PageTitle>지출 수정</PageTitle>
+
+@if (_entry is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Rounded="true" />
+}
+else
+{
+    <div class="form-layout">
+
+        @* ── Sticky 헤더 ── *@
+        <div class="form-header-sticky">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Medium"
+                           OnClick='() => Nav.NavigateTo("/entries")' />
+            <div style="flex:1;">
+                <div class="page-overline">EDIT ENTRY</div>
+                <div class="page-title" style="font-size:1.2rem;">지출 수정</div>
+            </div>
+            <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline"
+                           Color="Color.Error" OnClick="DeleteAsync" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       Disabled="_saving" OnClick="SaveAsync" Size="Size.Medium"
+                       Style="border-radius:10px;min-width:80px;">
+                @(_saving ? "저장 중" : "저장")
+            </MudButton>
+        </div>
+
+        @* ── 날짜 + 금액 ── *@
+        <div class="panel mb-4">
+            <div class="form-section-title">기본 정보</div>
+            <MudDatePicker Label="날짜" @bind-Date="_date"
+                           DateFormat="yyyy-MM-dd" Editable="true"
+                           Variant="Variant.Outlined" Class="mb-4" />
+            <div class="form-section-title">금액</div>
+            <AmountKeypad Value="_amount" ValueChanged="v => _amount = v" />
+        </div>
+
+        @* ── 카테고리 ── *@
+        <div class="panel mb-4">
+            <div class="form-section-title">카테고리</div>
+            <CategoryTileGrid SelectedCategoryId="_categoryId"
+                              SelectedCategoryIdChanged="v => _categoryId = v" />
+        </div>
+
+        @* ── 결제 정보 ── *@
+        <div class="panel mb-4">
+            <div class="form-section-title">결제 정보</div>
+            <div class="d-flex gap-3 mb-3">
+                <MudSelect T="int" Label="결제자" @bind-Value="_payerId"
+                           Variant="Variant.Outlined" Class="flex-1">
+                    @foreach (var p in _payers)
+                    {
+                        <MudSelectItem Value="@p.Id">@p.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="int" Label="결제수단" @bind-Value="_paymentMethodId"
+                           Variant="Variant.Outlined" Class="flex-1">
+                    @foreach (var m in _methods)
+                    {
+                        <MudSelectItem Value="@m.Id">@m.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </div>
+            <MudTextField Label="내용 (상호명)" @bind-Value="_content"
+                          Variant="Variant.Outlined" Class="mb-3" />
+            <MudTextField Label="메모 (선택)" @bind-Value="_memo"
+                          Variant="Variant.Outlined" />
+        </div>
+
+        @* ── 영수증 ── *@
+        <div class="panel mb-6">
+            <div class="form-section-title">영수증 첨부</div>
+            <ReceiptUpload ReceiptUrl="@_receiptUrl"
+                           ReceiptUrlChanged="v => _receiptUrl = v" />
+        </div>
+
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private HouseholdBudget.Data.Entities.Entry? _entry;
+    private DateTime? _date;
+    private decimal   _amount;
+    private int?      _categoryId;
+    private int       _payerId;
+    private int       _paymentMethodId;
+    private string    _content    = "";
+    private string?   _memo;
+    private string?   _receiptUrl;
+    private bool      _saving;
+
+    private List<HouseholdBudget.Data.Entities.Payer>         _payers  = [];
+    private List<HouseholdBudget.Data.Entities.PaymentMethod> _methods = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _payers  = await LookupSvc.GetPayersAsync();
+        _methods = await LookupSvc.GetPaymentMethodsAsync();
+
+        _entry = await EntrySvc.GetByIdAsync(Id);
+        if (_entry is null) { Nav.NavigateTo("/entries"); return; }
+
+        _date            = _entry.Date.ToDateTime(TimeOnly.MinValue);
+        _amount          = _entry.Amount;
+        _categoryId      = _entry.CategoryId;
+        _payerId         = _entry.PayerId;
+        _paymentMethodId = _entry.PaymentMethodId;
+        _content         = _entry.Content;
+        _memo            = _entry.Memo;
+        _receiptUrl      = ResolveReceiptUrl(_entry.ReceiptUrl);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_amount <= 0 || _categoryId is null) return;
+        _saving = true;
+        try
+        {
+            _entry!.Date            = DateOnly.FromDateTime(_date!.Value);
+            _entry.Amount          = _amount;
+            _entry.CategoryId      = _categoryId!.Value;
+            _entry.PayerId         = _payerId;
+            _entry.PaymentMethodId = _paymentMethodId;
+            _entry.Content         = _content.Trim();
+            _entry.Memo            = string.IsNullOrWhiteSpace(_memo) ? null : _memo.Trim();
+            _entry.ReceiptUrl      = _receiptUrl;
+
+            var ok = await EntrySvc.UpdateAsync(_entry);
+            if (ok) { Snackbar.Add("수정되었습니다.", Severity.Success); Nav.NavigateTo("/entries"); }
+            else      Snackbar.Add("수정에 실패했습니다.", Severity.Error);
+        }
+        finally { _saving = false; }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var ok = await EntrySvc.DeleteAsync(Id);
+        if (ok) { Snackbar.Add("삭제되었습니다.", Severity.Info); Nav.NavigateTo("/entries"); }
+        else      Snackbar.Add("삭제에 실패했습니다.", Severity.Error);
+    }
+
+    // DB에 URL이 남아있어도 실제 파일이 없으면 null 처리
+    private string? ResolveReceiptUrl(string? url)
+    {
+        if (url is null) return null;
+        var path = Path.Combine(Env.WebRootPath, url.TrimStart('/'));
+        return File.Exists(path) ? url : null;
+    }
+}

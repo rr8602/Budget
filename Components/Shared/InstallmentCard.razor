@@ -1,0 +1,69 @@
+@* 할부 항목 카드 *@
+
+<div class="inst-card @(Item.IsCompleted ? "inst-card-done" : "")">
+
+    @* ── 상단: 이름 + 액션 ── *@
+    <div class="inst-card-top">
+        <div class="inst-card-info">
+            <div class="inst-name">@Item.Name</div>
+            <div class="inst-meta">
+                <span>@Item.Card</span>
+                <span class="inst-meta-dot">·</span>
+                <span>총 @Item.TotalAmount.ToString("N0")원</span>
+            </div>
+        </div>
+        <div class="inst-card-actions">
+            @if (Item.IsCompleted)
+            {
+                <span class="inst-badge-done">완납</span>
+            }
+            <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small"
+                           OnClick="@(() => OnEdit.InvokeAsync(Item))" />
+            <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline" Size="Size.Small"
+                           Color="Color.Error"
+                           OnClick="@(() => OnDelete.InvokeAsync(Item.Id))" />
+        </div>
+    </div>
+
+    @* ── 월 납입액 강조 ── *@
+    <div class="inst-monthly">
+        <span class="inst-monthly-amount">@Item.MonthlyAmount.ToString("N0")</span>
+        <span class="inst-monthly-unit">원 / 월</span>
+    </div>
+
+    @* ── 진행 바 ── *@
+    @if (!Item.IsCompleted && Item.Months > 0)
+    {
+        var pct = Math.Min((double)(Item.Months - Item.RemainingMonths) / Item.Months * 100, 100);
+        <div class="inst-progress-row">
+            <MudProgressLinear Value="@pct" Color="Color.Primary"
+                               Rounded="true" Size="Size.Small" />
+            <span class="inst-progress-label">@pct.ToString("F0")%</span>
+        </div>
+    }
+    else
+    {
+        <MudDivider Class="my-2" />
+    }
+
+    @* ── 2열 통계 ── *@
+    <div class="inst-stats">
+        <div class="inst-stat">
+            <span class="inst-stat-label">남은 개월</span>
+            <span class="inst-stat-value">
+                @(Item.IsCompleted ? "완납" : $"{Item.RemainingMonths}개월")
+            </span>
+        </div>
+        <div class="inst-stat inst-stat-right">
+            <span class="inst-stat-label">완납 예정</span>
+            <span class="inst-stat-value">@Item.LastPayDate.ToString("yyyy.MM")</span>
+        </div>
+    </div>
+
+</div>
+
+@code {
+    [Parameter] public Installment                Item     { get; set; } = null!;
+    [Parameter] public EventCallback<int>         OnDelete { get; set; }
+    [Parameter] public EventCallback<Installment> OnEdit   { get; set; }
+}

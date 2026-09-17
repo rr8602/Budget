@@ -1,0 +1,122 @@
+@inherits LayoutComponentBase
+@inject IJSRuntime JS
+
+<MudThemeProvider Theme="_theme" IsDarkMode="_isDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0" Color="Color.Primary">
+        @* 모바일에서만 햄버거 표시 *@
+        <MudHidden Breakpoint="Breakpoint.MdAndUp">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
+                           Edge="Edge.Start" OnClick="ToggleDrawer" />
+        </MudHidden>
+
+        <div class="appbar-brand">
+            <div class="appbar-icon-wrap">
+                <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet"
+                         Style="font-size:18px;color:rgba(255,255,255,0.92);" />
+            </div>
+            <div class="appbar-title-wrap">
+                <span class="appbar-subtitle">Family Budget</span>
+                <span class="appbar-title">우리집 가계부</span>
+            </div>
+        </div>
+
+        <MudSpacer />
+        <MudTooltip Text="@(_isDarkMode ? "라이트 모드" : "다크 모드")">
+            <MudIconButton Color="Color.Inherit"
+                           Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                           OnClick="ToggleTheme" />
+        </MudTooltip>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="0"
+               Breakpoint="Breakpoint.Md"
+               Variant="DrawerVariant.Responsive"
+               ClipMode="DrawerClipMode.Always">
+        <NavMenu />
+    </MudDrawer>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="py-6 px-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+    private bool _isDarkMode;
+
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary             = "#6C63FF",
+            Secondary           = "#FF6B6B",
+            Background          = "#F4F6FB",
+            Surface             = "#FFFFFF",
+            AppbarBackground    = "#6C63FF",
+            AppbarText          = "#FFFFFF",
+            DrawerBackground    = "#FFFFFF",
+            DrawerText          = "#1A1A2E",
+            DrawerIcon          = "#6C63FF",
+            TextPrimary         = "#1A1A2E",
+            TextSecondary       = "#6B7280",
+            Divider             = "#E5E7EB",
+            Success             = "#22C55E",
+            Warning             = "#F59E0B",
+            Error               = "#EF4444",
+            Info                = "#3B82F6",
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary             = "#8B83FF",
+            Secondary           = "#FF6B6B",
+            Background          = "#0D1117",
+            Surface             = "#161B22",
+            AppbarBackground    = "#0D1117",
+            AppbarText          = "#E6EDF3",
+            DrawerBackground    = "#0D1117",
+            DrawerText          = "#E6EDF3",
+            DrawerIcon          = "#8B83FF",
+            TextPrimary         = "#E6EDF3",
+            TextSecondary       = "#8B949E",
+            Divider             = "#30363D",
+            Success             = "#3FB950",
+            Warning             = "#D29922",
+            Error               = "#F85149",
+            Info                = "#58A6FF",
+        },
+        LayoutProperties = new LayoutProperties
+        {
+            DrawerWidthLeft     = "240px",
+            DefaultBorderRadius = "12px",
+        }
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var saved = await JS.InvokeAsync<string?>("themeInterop.getSaved", "hb-theme");
+        _isDarkMode = saved is not null
+            ? saved == "dark"
+            : await JS.InvokeAsync<bool>("themeInterop.getSystemDark");
+
+        await JS.InvokeVoidAsync("themeInterop.setDark", _isDarkMode);
+        StateHasChanged();
+    }
+
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+
+    private async Task ToggleTheme()
+    {
+        _isDarkMode = !_isDarkMode;
+        await JS.InvokeVoidAsync("themeInterop.setSaved", "hb-theme", _isDarkMode ? "dark" : "light");
+        await JS.InvokeVoidAsync("themeInterop.setDark", _isDarkMode);
+    }
+}

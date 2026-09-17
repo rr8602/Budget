@@ -1,0 +1,29 @@
+<div style="padding:20px 12px 8px;">
+    <MudText Typo="Typo.caption" Color="Color.Secondary"
+             Style="font-weight:700;letter-spacing:1.2px;text-transform:uppercase;font-size:10px;">
+        가계부
+    </MudText>
+</div>
+
+<MudNavMenu>
+    <MudNavLink Href="/" Match="NavLinkMatch.All"
+                Icon="@Icons.Material.Filled.Dashboard">대시보드</MudNavLink>
+    <MudNavLink Href="/entries/new"
+                Icon="@Icons.Material.Filled.AddCircleOutline">지출 입력</MudNavLink>
+    <MudNavLink Href="/entries" Match="NavLinkMatch.All"
+                Icon="@Icons.Material.Filled.FormatListBulleted">지출 내역</MudNavLink>
+    <MudNavLink Href="/budget"
+                Icon="@Icons.Material.Filled.AccountBalance">예산 관리</MudNavLink>
+
+    <div style="padding:16px 12px 4px;">
+        <MudText Typo="Typo.caption" Color="Color.Secondary"
+                 Style="font-weight:700;letter-spacing:1.2px;text-transform:uppercase;font-size:10px;">
+            관리
+        </MudText>
+    </div>
+
+    <MudNavLink Href="/installments"
+                Icon="@Icons.Material.Filled.CreditCard">할부 관리</MudNavLink>
+    <MudNavLink Href="/settings/categories"
+                Icon="@Icons.Material.Filled.Tune">설정</MudNavLink>
+</MudNavMenu>

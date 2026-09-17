@@ -1,0 +1,132 @@
+@page "/entries/new"
+@rendermode InteractiveServer
+@inject EntryService  EntrySvc
+@inject LookupService LookupSvc
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>지출 입력</PageTitle>
+
+<div class="form-layout">
+
+    @* ── Sticky 헤더 (저장 버튼 포함) ── *@
+    <div class="form-header-sticky">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Medium"
+                       OnClick='() => Nav.NavigateTo("/entries")' />
+        <div style="flex:1;">
+            <div class="page-overline">NEW ENTRY</div>
+            <div class="page-title" style="font-size:1.2rem;">지출 입력</div>
+        </div>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="_saving" OnClick="SaveAsync" Size="Size.Medium"
+                   Style="border-radius:10px;min-width:80px;">
+            @(_saving ? "저장 중" : "저장")
+        </MudButton>
+    </div>
+
+    @* ── 날짜 + 금액 ── *@
+    <div class="panel mb-4">
+        <div class="form-section-title">기본 정보</div>
+        <MudDatePicker Label="날짜" @bind-Date="_date"
+                       DateFormat="yyyy-MM-dd" Editable="true"
+                       Variant="Variant.Outlined" Class="mb-4" />
+        <div class="form-section-title">금액</div>
+        <AmountKeypad Value="_amount" ValueChanged="v => _amount = v" />
+    </div>
+
+    @* ── 카테고리 ── *@
+    <div class="panel mb-4">
+        <div class="form-section-title">카테고리</div>
+        <CategoryTileGrid SelectedCategoryId="_categoryId"
+                          SelectedCategoryIdChanged="v => _categoryId = v" />
+    </div>
+
+    @* ── 결제 정보 ── *@
+    <div class="panel mb-4">
+        <div class="form-section-title">결제 정보</div>
+        <div class="d-flex gap-3 mb-3">
+            <MudSelect T="int" Label="결제자" @bind-Value="_payerId"
+                       Variant="Variant.Outlined" Class="flex-1">
+                @foreach (var p in _payers)
+                {
+                    <MudSelectItem Value="@p.Id">@p.Name</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="int" Label="결제수단" @bind-Value="_paymentMethodId"
+                       Variant="Variant.Outlined" Class="flex-1">
+                @foreach (var m in _methods)
+                {
+                    <MudSelectItem Value="@m.Id">@m.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </div>
+        <MudTextField Label="내용 (상호명)" @bind-Value="_content"
+                      Variant="Variant.Outlined"
+                      Placeholder="예: 홈플러스, 스타벅스" Class="mb-3" />
+        <MudTextField Label="메모 (선택)" @bind-Value="_memo"
+                      Variant="Variant.Outlined" Placeholder="추가 내용" />
+    </div>
+
+    @* ── 영수증 ── *@
+    <div class="panel mb-6">
+        <div class="form-section-title">영수증 첨부</div>
+        <ReceiptUpload ReceiptUrl="@_receiptUrl"
+                       ReceiptUrlChanged="v => _receiptUrl = v" />
+    </div>
+
+</div>
+
+@code {
+    private DateTime? _date   = DateTime.Today;
+    private decimal   _amount;
+    private int?      _categoryId;
+    private int       _payerId;
+    private int       _paymentMethodId;
+    private string    _content    = "";
+    private string?   _memo;
+    private string?   _receiptUrl;
+    private bool      _saving;
+
+    private List<HouseholdBudget.Data.Entities.Payer>         _payers  = [];
+    private List<HouseholdBudget.Data.Entities.PaymentMethod> _methods = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _payers  = await LookupSvc.GetPayersAsync();
+        _methods = await LookupSvc.GetPaymentMethodsAsync();
+        if (_payers.Count  > 0) _payerId         = _payers[0].Id;
+        if (_methods.Count > 0) _paymentMethodId = _methods[0].Id;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!Validate()) return;
+        _saving = true;
+        try
+        {
+            var entry = new HouseholdBudget.Data.Entities.Entry
+            {
+                Date            = DateOnly.FromDateTime(_date!.Value),
+                Amount          = _amount,
+                CategoryId      = _categoryId!.Value,
+                PayerId         = _payerId,
+                PaymentMethodId = _paymentMethodId,
+                Content         = _content.Trim(),
+                Memo            = string.IsNullOrWhiteSpace(_memo) ? null : _memo.Trim(),
+                ReceiptUrl      = _receiptUrl
+            };
+            var ok = await EntrySvc.CreateAsync(entry);
+            if (ok) { Snackbar.Add("저장되었습니다.", Severity.Success); Nav.NavigateTo("/entries"); }
+            else      Snackbar.Add("저장에 실패했습니다.", Severity.Error);
+        }
+        finally { _saving = false; }
+    }
+
+    private bool Validate()
+    {
+        if (_amount <= 0)                        { Snackbar.Add("금액을 입력해 주세요.", Severity.Warning);      return false; }
+        if (_categoryId is null)                 { Snackbar.Add("카테고리를 선택해 주세요.", Severity.Warning);  return false; }
+        if (string.IsNullOrWhiteSpace(_content)) { Snackbar.Add("내용을 입력해 주세요.", Severity.Warning);     return false; }
+        return true;
+    }
+}

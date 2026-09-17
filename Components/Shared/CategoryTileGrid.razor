@@ -1,0 +1,89 @@
+@* 카테고리 타일 선택 컴포넌트 — 대분류 먼저, 그 다음 소분류 선택 *@
+@inject CategoryService CategorySvc
+
+@if (_parentNames.Count > 0)
+{
+    @if (_selectedParent == null)
+    {
+        @* 1단계: 대분류 타일 *@
+        <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Secondary">대분류 선택</MudText>
+        <div class="tile-grid">
+            @foreach (var parent in _parentNames)
+            {
+                <MudButton Variant="Variant.Outlined"
+                           Class="category-tile"
+                           OnClick="() => SelectParent(parent)">
+                    @parent
+                </MudButton>
+            }
+        </div>
+    }
+    else
+    {
+        @* 2단계: 소분류 타일 *@
+        <div class="d-flex align-center mb-2">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                           Size="Size.Small" OnClick="ClearParent" />
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="ml-1">
+                @_selectedParent
+            </MudText>
+        </div>
+        <div class="tile-grid">
+            @foreach (var cat in _subCategories)
+            {
+                var isSelected = SelectedCategoryId == cat.Id;
+                <MudButton Variant="@(isSelected ? Variant.Filled : Variant.Outlined)"
+                           Color="@(isSelected ? Color.Primary : Color.Default)"
+                           Class="category-tile"
+                           OnClick="() => SelectCategory(cat)">
+                    @cat.Name
+                </MudButton>
+            }
+        </div>
+    }
+}
+
+<style>
+    .tile-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+    .category-tile {
+        height: 52px;
+        font-size: 0.85rem;
+        white-space: normal;
+        line-height: 1.2;
+    }
+</style>
+
+@code {
+    [Parameter] public int? SelectedCategoryId { get; set; }
+    [Parameter] public EventCallback<int> SelectedCategoryIdChanged { get; set; }
+
+    private List<string> _parentNames = [];
+    private List<HouseholdBudget.Data.Entities.Category> _subCategories = [];
+    private string? _selectedParent;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _parentNames = await CategorySvc.GetParentNamesAsync();
+    }
+
+    private async Task SelectParent(string parent)
+    {
+        _selectedParent = parent;
+        _subCategories = await CategorySvc.GetByParentAsync(parent);
+    }
+
+    private void ClearParent()
+    {
+        _selectedParent = null;
+        _subCategories = [];
+    }
+
+    private async Task SelectCategory(HouseholdBudget.Data.Entities.Category cat)
+    {
+        await SelectedCategoryIdChanged.InvokeAsync(cat.Id);
+    }
+}

@@ -1,0 +1,79 @@
+@* 숫자 패드 컴포넌트 — 모바일에서 소프트 키보드 대신 사용 *@
+
+<div class="amount-display">
+    <MudText Typo="Typo.h4" Align="Align.Right" Class="amount-text">
+        @(string.IsNullOrEmpty(_input) ? "0" : FormatDisplay(_input)) 원
+    </MudText>
+</div>
+
+<div class="keypad-grid">
+    @foreach (var key in _numericKeys)
+    {
+        <MudButton Variant="Variant.Outlined" Class="keypad-btn"
+                   OnClick="@(() => OnKeyPress(key))">@key</MudButton>
+    }
+    <MudButton Variant="Variant.Outlined" Class="keypad-btn" OnClick="OnKeyZero">0</MudButton>
+    <MudButton Variant="Variant.Outlined" Class="keypad-btn" OnClick="OnKeyDoubleZero">00</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Error" Class="keypad-btn" OnClick="OnBackspace">
+        <MudIcon Icon="@Icons.Material.Filled.Backspace" />
+    </MudButton>
+</div>
+
+<style>
+    .amount-display {
+        background: #f5f5f5;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 12px;
+    }
+    .amount-text { font-weight: bold; color: #1976d2; }
+    .keypad-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+    .keypad-btn { height: 56px; font-size: 1.2rem; font-weight: 500; }
+</style>
+
+@code {
+    [Parameter] public decimal Value { get; set; }
+    [Parameter] public EventCallback<decimal> ValueChanged { get; set; }
+
+    private string _input = "";
+    private readonly string[] _numericKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
+    protected override void OnParametersSet()
+    {
+        if (Value > 0 && _input == "")
+            _input = ((long)Value).ToString();
+    }
+
+    private async Task OnKeyPress(string key)
+    {
+        if (_input.Length >= 10) return;
+        _input = (_input + key).TrimStart('0');
+        if (_input == "") _input = "0";
+        await NotifyChanged();
+    }
+
+    private Task OnKeyZero() => OnKeyPress("0");
+    private Task OnKeyDoubleZero() => OnKeyPress("00");
+
+    private async Task OnBackspace()
+    {
+        if (_input.Length > 0)
+            _input = _input[..^1];
+        await NotifyChanged();
+    }
+
+    private async Task NotifyChanged()
+    {
+        var value = decimal.TryParse(_input, out var v) ? v : 0;
+        await ValueChanged.InvokeAsync(value);
+    }
+
+    private static string FormatDisplay(string input)
+    {
+        return decimal.TryParse(input, out var v) ? v.ToString("N0") : input;
+    }
+}

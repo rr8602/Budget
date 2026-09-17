@@ -1,0 +1,126 @@
+@page "/installments"
+@rendermode InteractiveServer
+@inject InstallmentService InstallmentService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>할부 관리</PageTitle>
+
+@* ── 페이지 헤더 ── *@
+<div class="page-header">
+    <div>
+        <div class="page-overline">INSTALLMENTS</div>
+        <h1 class="page-title">할부 관리</h1>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenAddDialog">
+        할부 추가
+    </MudButton>
+</div>
+
+@* ── 요약 카드 ── *@
+<div class="stat-grid mb-6" style="grid-template-columns:repeat(2,1fr);">
+    <div class="stat-card">
+        <div class="stat-label">진행 중</div>
+        <div class="stat-num">@(_activeList.Count)<span class="stat-unit">건</span></div>
+        <div class="stat-sub">현재 납입 중인 할부</div>
+    </div>
+    <div class="stat-card stat-card-accent">
+        <div class="stat-label">월 납입 합계</div>
+        <div class="stat-num">@_activeList.Sum(i => i.MonthlyAmount).ToString("N0")<span class="stat-unit">원</span></div>
+        <div class="stat-sub">매달 나가는 금액</div>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="panel">
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Rounded="true" />
+    </div>
+}
+else if (!_activeList.Any() && !_completedList.Any())
+{
+    <div class="panel">
+        <div class="empty-state">
+            <MudIcon Icon="@Icons.Material.Outlined.CreditCard"
+                     Style="font-size:52px;opacity:0.22;" />
+            <p style="margin-top:10px;">등록된 할부가 없습니다.</p>
+        </div>
+    </div>
+}
+else
+{
+    @* ── 진행 중 ── *@
+    @if (_activeList.Any())
+    {
+        <div class="section-label">진행 중</div>
+        <div class="inst-grid">
+            @foreach (var item in _activeList)
+            {
+                <InstallmentCard Item="item" OnDelete="DeleteAsync" OnEdit="OpenEditDialog" />
+            }
+        </div>
+    }
+
+    @* ── 완료 ── *@
+    @if (_completedList.Any())
+    {
+        <div class="section-label" style="margin-top:32px;">완료</div>
+        <div class="inst-grid">
+            @foreach (var item in _completedList)
+            {
+                <InstallmentCard Item="item" OnDelete="DeleteAsync" OnEdit="OpenEditDialog" />
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<Installment> _activeList    = [];
+    private List<Installment> _completedList = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        var all = await InstallmentService.GetAllAsync();
+        _activeList    = all.Where(i => !i.IsCompleted).ToList();
+        _completedList = all.Where(i =>  i.IsCompleted).ToList();
+        _loading = false;
+    }
+
+    private async Task OpenAddDialog()
+    {
+        var dialog = await DialogService.ShowAsync<InstallmentDialog>("할부 추가");
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Installment item })
+        {
+            var ok = await InstallmentService.CreateAsync(item);
+            if (ok) { Snackbar.Add("추가되었습니다.", Severity.Success); await LoadAsync(); }
+            else      Snackbar.Add("저장에 실패했습니다.", Severity.Error);
+        }
+    }
+
+    private async Task OpenEditDialog(Installment item)
+    {
+        var parameters = new DialogParameters<InstallmentDialog> { { x => x.Model, item } };
+        var dialog = await DialogService.ShowAsync<InstallmentDialog>("할부 수정", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Installment updated })
+        {
+            var ok = await InstallmentService.UpdateAsync(updated);
+            if (ok) { Snackbar.Add("수정되었습니다.", Severity.Success); await LoadAsync(); }
+            else      Snackbar.Add("저장에 실패했습니다.", Severity.Error);
+        }
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        var ok = await InstallmentService.DeleteAsync(id);
+        if (ok) { Snackbar.Add("삭제되었습니다.", Severity.Success); await LoadAsync(); }
+        else      Snackbar.Add("삭제에 실패했습니다.", Severity.Error);
+    }
+}

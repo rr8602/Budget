@@ -1,0 +1,268 @@
+@page "/settings/categories"
+@rendermode InteractiveServer
+@inject CategoryService  CategoryService
+@inject FixedItemService FixedItemService
+@inject ISnackbar Snackbar
+
+<PageTitle>설정</PageTitle>
+
+<div class="page-header">
+    <div>
+        <div class="page-overline">SETTINGS</div>
+        <h1 class="page-title">설정</h1>
+    </div>
+</div>
+
+<MudTabs Elevation="0" Rounded="false" ApplyEffectsToContainer="true"
+         Class="settings-tabs">
+
+    @* ══════ 탭 1: 카테고리 ══════ *@
+    <MudTabPanel Text="카테고리">
+
+        @* 추가 폼 *@
+        <div class="panel mb-5">
+            <div class="form-section-title">새 소분류 추가</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                <MudTextField Label="대분류" @bind-Value="_newParent"
+                              Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Placeholder="예: 식비" />
+                <MudTextField Label="소분류" @bind-Value="_newChild"
+                              Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Placeholder="예: 점심" />
+            </div>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       Disabled="@(!CanAddCategory)"
+                       OnClick="AddCategoryAsync">
+                추가
+            </MudButton>
+        </div>
+
+        @* 목록 *@
+        @if (_catLoading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Rounded="true" />
+        }
+        else
+        {
+            @foreach (var group in _categories.GroupBy(c => c.ParentName).OrderBy(g => g.Key))
+            {
+                <div class="panel mb-3">
+                    <div class="settings-group-header">
+                        <span class="settings-group-name">@group.Key</span>
+                        <span class="settings-group-count">@(group.Count())개</span>
+                    </div>
+                    @foreach (var cat in group)
+                    {
+                        <div class="settings-list-item">
+                            <span class="settings-item-name">@cat.Name</span>
+                            <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline"
+                                           Size="Size.Small" Color="Color.Error"
+                                           OnClick="@(() => DeleteCategoryAsync(cat.Id))" />
+                        </div>
+                    }
+                </div>
+            }
+            @if (!_categories.Any())
+            {
+                <div class="panel">
+                    <div class="empty-state">카테고리가 없습니다. 추가해 주세요.</div>
+                </div>
+            }
+        }
+
+    </MudTabPanel>
+
+    @* ══════ 탭 2: 고정비 ══════ *@
+    <MudTabPanel Text="고정비">
+
+        @* 추가 폼 *@
+        <div class="panel mb-5">
+            <div class="form-section-title">고정비 추가</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                <MudSelect T="string" Label="구분" Value="_fi.GroupType"
+                           ValueChanged="v => _fi.GroupType = v"
+                           Variant="Variant.Outlined" Margin="Margin.Dense">
+                    @foreach (var g in new[] { "저축", "보험", "정기지출", "유동지출" })
+                    {
+                        <MudSelectItem Value="@g">@g</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudTextField Label="담당자" @bind-Value="_fi.Owner"
+                              Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Placeholder="병진 / 현지 / 공통" />
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                <MudTextField Label="항목명" @bind-Value="_fi.Name"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudAutocomplete T="Category" Label="카테고리"
+                                 Value="_selectedCategoryAc"
+                                 ValueChanged="OnCategorySelected"
+                                 SearchFunc="SearchCategories"
+                                 ToStringFunc='c => c is null ? string.Empty : $"{c.ParentName} — {c.Name}"'
+                                 Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 ResetValueOnEmptyText="true"
+                                 Placeholder="검색..." />
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                <MudNumericField T="decimal" Label="월 금액"
+                                 Value="_fi.Amount"
+                                 ValueChanged="v => _fi.Amount = v"
+                                 Format="N0" HideSpinButtons="true"
+                                 Adornment="Adornment.End" AdornmentText="원"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudTextField Label="결제수단 메모" @bind-Value="_fi.PaymentNote"
+                              Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Placeholder="신한카드, 자동이체 등" />
+            </div>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       Disabled="@(!CanAddFixedItem)"
+                       OnClick="AddFixedItemAsync">
+                추가
+            </MudButton>
+        </div>
+
+        @* 목록 *@
+        @if (_fiLoading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Rounded="true" />
+        }
+        else
+        {
+            @foreach (var group in _fixedItems.GroupBy(f => f.GroupType).OrderBy(g => g.Key))
+            {
+                <div class="panel mb-3">
+                    <div class="settings-group-header">
+                        <span class="settings-group-name">@group.Key</span>
+                        <span class="settings-group-count">
+                            합계 @group.Sum(f => f.Amount).ToString("N0")원
+                        </span>
+                    </div>
+                    @foreach (var fi in group)
+                    {
+                        <div class="settings-list-item">
+                            <div class="settings-fi-info">
+                                <span class="settings-item-name">@fi.Name</span>
+                                <span class="settings-item-meta">
+                                    @fi.Owner
+                                    @if (!string.IsNullOrEmpty(fi.Category?.ParentName))
+                                    { <span> · @fi.Category.ParentName</span> }
+                                    @if (!string.IsNullOrEmpty(fi.PaymentNote))
+                                    { <span> · @fi.PaymentNote</span> }
+                                </span>
+                            </div>
+                            <div class="settings-fi-right">
+                                <span class="settings-fi-amount">@fi.Amount.ToString("N0")원</span>
+                                <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline"
+                                               Size="Size.Small" Color="Color.Error"
+                                               OnClick="@(() => DeleteFixedItemAsync(fi.Id))" />
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            @if (!_fixedItems.Any())
+            {
+                <div class="panel">
+                    <div class="empty-state">등록된 고정비가 없습니다.</div>
+                </div>
+            }
+        }
+
+    </MudTabPanel>
+
+</MudTabs>
+
+@code {
+    private List<Category>  _categories = [];
+    private bool _catLoading = true;
+    private string _newParent = "";
+    private string _newChild  = "";
+    private bool CanAddCategory =>
+        !string.IsNullOrWhiteSpace(_newParent) && !string.IsNullOrWhiteSpace(_newChild);
+
+    private List<FixedItem> _fixedItems = [];
+    private bool _fiLoading = true;
+    private FixedItem _fi = new();
+    private Category? _selectedCategoryAc;
+    private bool CanAddFixedItem =>
+        !string.IsNullOrWhiteSpace(_fi.GroupType) &&
+        !string.IsNullOrWhiteSpace(_fi.Name) &&
+        _fi.CategoryId > 0 &&
+        _fi.Amount > 0;
+
+    protected override async Task OnInitializedAsync()
+        => await Task.WhenAll(LoadCategoriesAsync(), LoadFixedItemsAsync());
+
+    private async Task LoadCategoriesAsync()
+    {
+        _catLoading = true;
+        _categories = await CategoryService.GetAllAsync();
+        _catLoading = false;
+    }
+
+    private async Task LoadFixedItemsAsync()
+    {
+        _fiLoading = true;
+        _fixedItems = await FixedItemService.GetAllAsync();
+        _fiLoading = false;
+    }
+
+    private async Task AddCategoryAsync()
+    {
+        var ok = await CategoryService.CreateAsync(_newParent.Trim(), _newChild.Trim());
+        if (ok) { Snackbar.Add("추가되었습니다.", Severity.Success); _newParent = _newChild = ""; await LoadCategoriesAsync(); }
+        else      Snackbar.Add("이미 존재하거나 저장에 실패했습니다.", Severity.Warning);
+    }
+
+    private async Task DeleteCategoryAsync(int id)
+    {
+        var ok = await CategoryService.DeleteAsync(id);
+        if (ok) { Snackbar.Add("삭제되었습니다.", Severity.Success); await LoadCategoriesAsync(); }
+        else      Snackbar.Add("삭제에 실패했습니다. (지출 내역에서 사용 중일 수 있습니다.)", Severity.Error);
+    }
+
+    private void OnCategorySelected(Category? cat)
+    {
+        _selectedCategoryAc = cat;
+        _fi.CategoryId = cat?.Id ?? 0;
+    }
+
+    private Task<IEnumerable<Category>> SearchCategories(string val, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(val))
+            return Task.FromResult(_categories.AsEnumerable());
+        return Task.FromResult(_categories.Where(c =>
+            c.ParentName.Contains(val, StringComparison.OrdinalIgnoreCase) ||
+            c.Name.Contains(val, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private async Task AddFixedItemAsync()
+    {
+        var ok = await FixedItemService.CreateAsync(new FixedItem
+        {
+            GroupType   = _fi.GroupType,
+            Owner       = _fi.Owner,
+            Name        = _fi.Name,
+            CategoryId  = _fi.CategoryId,
+            Amount      = _fi.Amount,
+            PaymentNote = _fi.PaymentNote
+        });
+        if (ok)
+        {
+            Snackbar.Add("추가되었습니다.", Severity.Success);
+            _fi = new FixedItem();
+            _selectedCategoryAc = null;
+            await LoadFixedItemsAsync();
+        }
+        else Snackbar.Add("저장에 실패했습니다.", Severity.Error);
+    }
+
+    private async Task DeleteFixedItemAsync(int id)
+    {
+        var ok = await FixedItemService.DeleteAsync(id);
+        if (ok) { Snackbar.Add("삭제되었습니다.", Severity.Success); await LoadFixedItemsAsync(); }
+        else      Snackbar.Add("삭제에 실패했습니다.", Severity.Error);
+    }
+}

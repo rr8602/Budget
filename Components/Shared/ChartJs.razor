@@ -1,0 +1,31 @@
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<canvas id="@_canvasId" style="@Style"></canvas>
+
+@code {
+    [Parameter] public string  Type     { get; set; } = "doughnut";
+    [Parameter] public string[] Labels  { get; set; } = [];
+    [Parameter] public object[] Datasets { get; set; } = [];
+    [Parameter] public object?  Options  { get; set; }
+    [Parameter] public string   Style    { get; set; } = "";
+
+    private readonly string _canvasId = $"chart-{Guid.NewGuid():N}";
+    private bool _shouldDraw;
+
+    protected override void OnParametersSet() => _shouldDraw = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender && !_shouldDraw) return;
+        _shouldDraw = false;
+        if (Labels.Length == 0) return;
+        await JS.InvokeVoidAsync("chartInterop.draw", _canvasId, Type, Labels, Datasets, (object?)Options);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("chartInterop.destroy", _canvasId); }
+        catch { /* Circuit disconnected */ }
+    }
+}
