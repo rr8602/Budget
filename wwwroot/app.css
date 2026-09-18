@@ -409,32 +409,6 @@ body.hb-dark .hb-table .mud-table-foot td {
     max-width: 620px;
     margin: 0 auto;
 }
-
-/* 지출 입력/수정 — 2열 레이아웃 */
-.entry-form-page { max-width: 900px; }
-
-.entry-form-body {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    align-items: start;
-}
-.entry-form-left,
-.entry-form-right {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-@media (max-width: 899px) {
-    .entry-form-body { grid-template-columns: 1fr; }
-    .entry-form-page .panel { padding: 12px 14px; }
-    .entry-form-page .form-section-title { margin-bottom: 8px; }
-    .entry-form-page .keypad-grid { gap: 5px; }
-    .entry-form-page .keypad-btn { height: 40px !important; font-size: 1rem !important; }
-    .entry-form-page .category-tile { height: 42px !important; font-size: 0.78rem !important; }
-    .entry-form-page .amount-display { padding: 8px 12px; margin-bottom: 8px; }
-}
 .form-header {
     display: flex;
     align-items: center;

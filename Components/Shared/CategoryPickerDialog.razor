@@ -1,0 +1,88 @@
+@* 카테고리 전체 선택 다이얼로그 — 대분류 → 소분류 2단계 *@
+@inject CategoryService CategorySvc
+
+<MudDialog Style="min-width:360px;max-width:480px;">
+    <TitleContent>
+        <div style="display:flex;align-items:center;gap:4px;">
+            @if (_parent != null)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                               Size="Size.Small" OnClick="Back" />
+            }
+            <span style="font-weight:700;font-size:1rem;">
+                @(_parent ?? "카테고리 선택")
+            </span>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (_parent == null)
+        {
+            <div class="tile-grid">
+                @foreach (var p in _parentNames)
+                {
+                    <MudButton Variant="Variant.Outlined" Class="category-tile"
+                               OnClick="() => SelectParent(p)">@p</MudButton>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="tile-grid">
+                @foreach (var cat in _subCats)
+                {
+                    var isSel = SelectedId == cat.Id;
+                    <MudButton Variant="@(isSel ? Variant.Filled : Variant.Outlined)"
+                               Color="@(isSel ? Color.Primary : Color.Default)"
+                               Class="category-tile"
+                               OnClick="() => Done(cat)">@cat.Name</MudButton>
+                }
+            </div>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">취소</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .tile-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+    .category-tile {
+        height: 52px;
+        font-size: 0.85rem;
+        white-space: normal;
+        line-height: 1.2;
+    }
+</style>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public int? SelectedId { get; set; }
+
+    private List<string> _parentNames = [];
+    private List<HouseholdBudget.Data.Entities.Category> _subCats = [];
+    private string? _parent;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _parentNames = await CategorySvc.GetParentNamesAsync();
+    }
+
+    private async Task SelectParent(string parent)
+    {
+        _parent = parent;
+        _subCats = await CategorySvc.GetByParentAsync(parent);
+    }
+
+    private void Back() { _parent = null; _subCats = []; }
+
+    private void Done(HouseholdBudget.Data.Entities.Category cat)
+        => MudDialog.Close(DialogResult.Ok(new CategoryPickerResult(cat.Id, _parent!, cat.Name)));
+
+    private void Cancel() => MudDialog.Cancel();
+
+    public record CategoryPickerResult(int Id, string ParentName, string Name);
+}

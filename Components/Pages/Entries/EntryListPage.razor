@@ -150,7 +150,7 @@ else
         List<EntryRow> Rows, decimal MonthlyTotal, decimal FixedTotal, int Year, int Month);
 
     private record EntryRow(
-        Guid Id, DateOnly Date, decimal Amount, string Content, string? Memo,
+        Guid Id, string Date, decimal Amount, string Content, string? Memo,
         string? CatParent, string? CatName, string? Payer, string? Method);
 
     // ── 상태 ──
@@ -185,7 +185,7 @@ else
             _entries      = cached.Rows.Select(r => new Entry
             {
                 Id            = r.Id,
-                Date          = r.Date,
+                Date          = DateOnly.ParseExact(r.Date, "yyyy-MM-dd"),
                 Amount        = r.Amount,
                 Content       = r.Content,
                 Memo          = r.Memo,
@@ -205,7 +205,7 @@ else
     {
         ApplicationState.PersistAsJson("entry-list", new PersistedEntries(
             _entries.Select(e => new EntryRow(
-                e.Id, e.Date, e.Amount, e.Content, e.Memo,
+                e.Id, e.Date.ToString("yyyy-MM-dd"), e.Amount, e.Content, e.Memo,
                 e.Category?.ParentName, e.Category?.Name,
                 e.Payer?.Name, e.PaymentMethod?.Name)).ToList(),
             _monthlyTotal, _fixedTotal, _year, _month));

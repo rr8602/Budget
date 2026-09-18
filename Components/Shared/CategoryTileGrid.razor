@@ -1,59 +1,37 @@
-@* 카테고리 타일 선택 컴포넌트 — 대분류 먼저, 그 다음 소분류 선택 *@
+@* 카테고리 선택 — 최근 4개 빠른 선택 + 전체 다이얼로그 *@
 @inject CategoryService CategorySvc
+@inject IJSRuntime JS
+@inject IDialogService DialogService
 
-@if (_parentNames.Count > 0)
-{
-    @if (_selectedParent == null)
+<div class="cat-quick-row">
+    @foreach (var cat in _recentCats)
     {
-        @* 1단계: 대분류 타일 *@
-        <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Secondary">대분류 선택</MudText>
-        <div class="tile-grid">
-            @foreach (var parent in _parentNames)
-            {
-                <MudButton Variant="Variant.Outlined"
-                           Class="category-tile"
-                           OnClick="() => SelectParent(parent)">
-                    @parent
-                </MudButton>
-            }
-        </div>
+        var isSelected = SelectedCategoryId == cat.Id;
+        <MudButton Variant="@(isSelected ? Variant.Filled : Variant.Outlined)"
+                   Color="@(isSelected ? Color.Primary : Color.Default)"
+                   Class="cat-quick-btn"
+                   OnClick="() => SelectQuickAsync(cat)">@cat.Name</MudButton>
     }
-    else
-    {
-        @* 2단계: 소분류 타일 *@
-        <div class="d-flex align-center mb-2">
-            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
-                           Size="Size.Small" OnClick="ClearParent" />
-            <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="ml-1">
-                @_selectedParent
-            </MudText>
-        </div>
-        <div class="tile-grid">
-            @foreach (var cat in _subCategories)
-            {
-                var isSelected = SelectedCategoryId == cat.Id;
-                <MudButton Variant="@(isSelected ? Variant.Filled : Variant.Outlined)"
-                           Color="@(isSelected ? Color.Primary : Color.Default)"
-                           Class="category-tile"
-                           OnClick="() => SelectCategory(cat)">
-                    @cat.Name
-                </MudButton>
-            }
-        </div>
-    }
-}
+    <MudButton Variant="Variant.Outlined" Class="cat-quick-btn cat-quick-all"
+               StartIcon="@Icons.Material.Filled.GridView"
+               OnClick="OpenDialogAsync">전체</MudButton>
+</div>
 
 <style>
-    .tile-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
+    .cat-quick-row {
+        display: flex;
         gap: 8px;
+        flex-wrap: wrap;
     }
-    .category-tile {
-        height: 52px;
-        font-size: 0.85rem;
-        white-space: normal;
-        line-height: 1.2;
+    .cat-quick-btn {
+        height: 40px;
+        font-size: 0.82rem;
+        white-space: nowrap;
+        flex: 1;
+        min-width: 64px;
+    }
+    .cat-quick-all {
+        border-style: dashed !important;
     }
 </style>
 
@@ -61,29 +39,80 @@
     [Parameter] public int? SelectedCategoryId { get; set; }
     [Parameter] public EventCallback<int> SelectedCategoryIdChanged { get; set; }
 
-    private List<string> _parentNames = [];
-    private List<HouseholdBudget.Data.Entities.Category> _subCategories = [];
-    private string? _selectedParent;
+    private record RecentCat(int Id, string ParentName, string Name);
+
+    private List<string>    _parentNames = [];
+    private List<RecentCat> _recentCats  = [];
 
     protected override async Task OnInitializedAsync()
     {
         _parentNames = await CategorySvc.GetParentNamesAsync();
     }
 
-    private async Task SelectParent(string parent)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        _selectedParent = parent;
-        _subCategories = await CategorySvc.GetByParentAsync(parent);
+        if (!firstRender) return;
+        await LoadRecentAsync();
     }
 
-    private void ClearParent()
+    private async Task LoadRecentAsync()
     {
-        _selectedParent = null;
-        _subCategories = [];
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("localStorage.getItem", "hb-recent-cats");
+            if (!string.IsNullOrEmpty(json))
+            {
+                var cats = System.Text.Json.JsonSerializer.Deserialize<List<RecentCat>>(json);
+                if (cats?.Count > 0) { _recentCats = cats; StateHasChanged(); return; }
+            }
+        }
+        catch { }
+
+        // 최근 사용 내역 없으면 첫 번째 대분류의 소분류 최대 4개를 기본 표시
+        if (_parentNames.Count > 0)
+        {
+            var defaults = await CategorySvc.GetByParentAsync(_parentNames[0]);
+            _recentCats = defaults.Take(4)
+                .Select(c => new RecentCat(c.Id, _parentNames[0], c.Name))
+                .ToList();
+            StateHasChanged();
+        }
     }
 
-    private async Task SelectCategory(HouseholdBudget.Data.Entities.Category cat)
+    private async Task SelectQuickAsync(RecentCat cat)
     {
         await SelectedCategoryIdChanged.InvokeAsync(cat.Id);
+        await PushRecentAsync(cat);
+    }
+
+    private async Task OpenDialogAsync()
+    {
+        var opts = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+        var p = new DialogParameters<CategoryPickerDialog> { { x => x.SelectedId, SelectedCategoryId } };
+        var dialog = await DialogService.ShowAsync<CategoryPickerDialog>("", p, opts);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: CategoryPickerDialog.CategoryPickerResult picked })
+        {
+            await SelectedCategoryIdChanged.InvokeAsync(picked.Id);
+            await PushRecentAsync(new RecentCat(picked.Id, picked.ParentName, picked.Name));
+        }
+    }
+
+    private async Task PushRecentAsync(RecentCat cat)
+    {
+        _recentCats.RemoveAll(r => r.Id == cat.Id);
+        _recentCats.Insert(0, cat);
+        if (_recentCats.Count > 4) _recentCats = _recentCats[..4];
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_recentCats);
+            await JS.InvokeVoidAsync("localStorage.setItem", "hb-recent-cats", json);
+        }
+        catch { }
     }
 }
