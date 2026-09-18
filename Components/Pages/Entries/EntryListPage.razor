@@ -2,8 +2,7 @@
 @inject EntryService            EntrySvc
 @inject FixedItemService        FixedItemSvc
 @inject NavigationManager       Nav
-@inject PersistentComponentState ApplicationState
-@implements IDisposable
+@inject IMemoryCache            Cache
 
 <PageTitle>지출 내역</PageTitle>
 
@@ -142,15 +141,8 @@ else
 }
 
 @code {
-    // ── SSR → 하이드레이션 데이터 유지 (1초 딜레이 제거) ──
-    private PersistingComponentStateSubscription _persisting;
-
-    private record PersistedEntries(
-        List<EntryRow> Rows, decimal MonthlyTotal, decimal FixedTotal, int Year, int Month);
-
-    private record EntryRow(
-        Guid Id, string Date, decimal Amount, string Content, string? Memo,
-        string? CatParent, string? CatName, string? Payer, string? Method);
+    private record CachedEntries(List<Entry> Entries, decimal MonthlyTotal, decimal FixedTotal);
+    private static string CacheKey(int y, int m) => $"entry-list-{y}-{m}";
 
     // ── 상태 ──
     private int         _year        = DateTime.Today.Year;
@@ -159,7 +151,7 @@ else
     private decimal     _monthlyTotal;
     private decimal     _fixedTotal;
     private bool        _loading;
-    private int         _renderKey;  // 월 변경 시 fade-in 재실행용
+    private int         _renderKey;
 
     private bool IsCurrentMonth => _year == DateTime.Today.Year && _month == DateTime.Today.Month;
 
@@ -172,46 +164,17 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _persisting = ApplicationState.RegisterOnPersisting(PersistEntries);
-
-        if (ApplicationState.TryTakeFromJson<PersistedEntries>("entry-list", out var cached) && cached is not null)
+        // 캐시 HIT → await 없이 동기적으로 즉시 복원 (SSR·Blazor 양쪽 모두 같은 서버 프로세스)
+        if (Cache.TryGetValue(CacheKey(_year, _month), out CachedEntries? cached) && cached is not null)
         {
-            // 하이드레이션: SSR에서 저장된 데이터를 즉시 복원 (DB 재조회 없음)
-            _year         = cached.Year;
-            _month        = cached.Month;
+            _entries      = cached.Entries;
             _monthlyTotal = cached.MonthlyTotal;
             _fixedTotal   = cached.FixedTotal;
-            _entries      = cached.Rows.Select(r => new Entry
-            {
-                Id            = r.Id,
-                Date          = DateOnly.ParseExact(r.Date, "yyyy-MM-dd"),
-                Amount        = r.Amount,
-                Content       = r.Content,
-                Memo          = r.Memo,
-                Category      = new Category      { ParentName = r.CatParent ?? "", Name = r.CatName ?? "" },
-                Payer         = new Payer         { Name = r.Payer  ?? "" },
-                PaymentMethod = new PaymentMethod { Name = r.Method ?? "" }
-            }).ToList();
             AssignColors();
+            return;
         }
-        else
-        {
-            await LoadAsync(showSpinner: false);
-        }
+        await LoadAsync(showSpinner: false);
     }
-
-    private Task PersistEntries()
-    {
-        ApplicationState.PersistAsJson("entry-list", new PersistedEntries(
-            _entries.Select(e => new EntryRow(
-                e.Id, e.Date.ToString("yyyy-MM-dd"), e.Amount, e.Content, e.Memo,
-                e.Category?.ParentName, e.Category?.Name,
-                e.Payer?.Name, e.PaymentMethod?.Name)).ToList(),
-            _monthlyTotal, _fixedTotal, _year, _month));
-        return Task.CompletedTask;
-    }
-
-    public void Dispose() => _persisting.Dispose();
 
     private async Task PrevMonth()
     {
@@ -231,18 +194,16 @@ else
 
     private async Task LoadAsync(bool showSpinner = true)
     {
-        if (showSpinner)
-        {
-            _loading = true;
-            StateHasChanged();
-        }
+        if (showSpinner) { _loading = true; StateHasChanged(); }
         _entries      = await EntrySvc.GetMonthlyAsync(_year, _month);
         _monthlyTotal = _entries.Sum(e => e.Amount);
         _fixedTotal   = await FixedItemSvc.GetTotalAsync();
         _colorMap.Clear();
         AssignColors();
         _loading = false;
-        _renderKey++;  // 목록 교체 시 fade-in 재실행
+        _renderKey++;
+        Cache.Set(CacheKey(_year, _month), new CachedEntries(_entries, _monthlyTotal, _fixedTotal),
+                  TimeSpan.FromSeconds(30));
     }
 
     private void AssignColors()
