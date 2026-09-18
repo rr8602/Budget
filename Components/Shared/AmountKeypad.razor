@@ -1,4 +1,4 @@
-@* 숫자 패드 컴포넌트 — 모바일에서 소프트 키보드 대신 사용 *@
+@* 숫자 패드 컴포넌트 — 4열: 숫자 3열 + 액션 1열(C / +1만 / 기록) *@
 
 <div class="amount-display">
     <MudText Typo="Typo.h4" Align="Align.Right" Class="amount-text">
@@ -7,6 +7,7 @@
 </div>
 
 <div class="keypad-grid">
+    @* ── 숫자 1-9 + 0, 00, ⌫ (3열 자동 배치) ── *@
     @foreach (var key in _numericKeys)
     {
         <MudButton Variant="Variant.Outlined" Class="keypad-btn"
@@ -17,6 +18,28 @@
     <MudButton Variant="Variant.Filled" Color="Color.Error" Class="keypad-btn" OnClick="OnBackspace">
         <MudIcon Icon="@Icons.Material.Filled.Backspace" />
     </MudButton>
+
+    @* ── 4열 1행: 전체 초기화 ── *@
+    <MudButton Variant="Variant.Outlined" Class="keypad-btn keypad-clr"
+               OnClick="OnClear">C</MudButton>
+
+    @* ── 4열 2행: +1만 ── *@
+    <MudButton Variant="Variant.Outlined" Class="keypad-btn keypad-plus1"
+               OnClick="OnAddTenThousand">+1만</MudButton>
+
+    @* ── 4열 3-4행: 기록 (2행 span) ── *@
+    <div class="keypad-save-cell">
+        <MudButton Variant="@(_canSave ? Variant.Filled : Variant.Outlined)"
+                   Color="@(_canSave ? Color.Primary : Color.Default)"
+                   Class="keypad-save"
+                   Disabled="IsSaving"
+                   OnClick="OnSave">
+            <div class="keypad-save-content">
+                <span class="keypad-save-top">@_saveLabel.Top</span>
+                <span class="keypad-save-bot">@_saveLabel.Bot</span>
+            </div>
+        </MudButton>
+    </div>
 </div>
 
 <style>
@@ -27,20 +50,59 @@
         margin-bottom: 12px;
     }
     .amount-text { font-weight: bold; color: #1976d2; }
+
     .keypad-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(3, 1fr) 1fr;
         gap: 8px;
     }
-    .keypad-btn { height: 56px; font-size: 1.2rem; font-weight: 500; }
+    .keypad-btn  { height: 56px; font-size: 1.2rem; font-weight: 500; }
+    .keypad-clr  { grid-column: 4; grid-row: 1; font-size: 1rem; }
+    .keypad-plus1{ grid-column: 4; grid-row: 2; font-size: 0.9rem; font-weight: 600; }
+
+    .keypad-save-cell {
+        grid-column: 4;
+        grid-row: 3 / 5;
+        display: flex;
+    }
+    .keypad-save {
+        flex: 1 !important;
+        border-radius: 8px !important;
+    }
+    .keypad-save-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        line-height: 1.25;
+    }
+    .keypad-save-top {
+        font-size: 1rem;
+        font-weight: 700;
+    }
+    .keypad-save-bot {
+        font-size: 0.78rem;
+        font-weight: 400;
+    }
 </style>
 
 @code {
     [Parameter] public decimal Value { get; set; }
     [Parameter] public EventCallback<decimal> ValueChanged { get; set; }
+    [Parameter] public int? CategoryId { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public bool IsSaving { get; set; }
 
     private string _input = "";
     private readonly string[] _numericKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
+    private decimal _amount => decimal.TryParse(_input, out var v) ? v : 0m;
+    private bool _canSave   => _amount > 0 && CategoryId.HasValue;
+
+    private (string Top, string Bot) _saveLabel =>
+        !CategoryId.HasValue ? ("항목", "골라주세요.") :
+        _amount <= 0         ? ("금액", "입력하세요.") :
+                              ("기록", $"{_amount:N0}원");
 
     protected override void OnParametersSet()
     {
@@ -56,13 +118,27 @@
         await NotifyChanged();
     }
 
-    private Task OnKeyZero() => OnKeyPress("0");
+    private Task OnKeyZero()      => OnKeyPress("0");
     private Task OnKeyDoubleZero() => OnKeyPress("00");
 
     private async Task OnBackspace()
     {
         if (_input.Length > 0)
             _input = _input[..^1];
+        await NotifyChanged();
+    }
+
+    private async Task OnClear()
+    {
+        _input = "";
+        await NotifyChanged();
+    }
+
+    private async Task OnAddTenThousand()
+    {
+        var next = _amount + 10000m;
+        if (next > 9_999_999_999m) return;
+        _input = ((long)next).ToString();
         await NotifyChanged();
     }
 
@@ -73,7 +149,5 @@
     }
 
     private static string FormatDisplay(string input)
-    {
-        return decimal.TryParse(input, out var v) ? v.ToString("N0") : input;
-    }
+        => decimal.TryParse(input, out var v) ? v.ToString("N0") : input;
 }

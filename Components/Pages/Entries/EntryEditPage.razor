@@ -22,11 +22,6 @@ else
             </div>
             <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline"
                            Color="Color.Error" OnClick="DeleteAsync" />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                       Disabled="_saving" OnClick="SaveAsync" Size="Size.Medium"
-                       Style="border-radius:10px;min-width:80px;">
-                @(_saving ? "저장 중" : "저장")
-            </MudButton>
         </div>
 
         @* ── 날짜 + 금액 ── *@
@@ -36,7 +31,8 @@ else
                            DateFormat="yyyy-MM-dd" Editable="true"
                            Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2" />
             <div class="form-section-title">금액</div>
-            <AmountKeypad Value="_amount" ValueChanged="v => _amount = v" />
+            <AmountKeypad Value="_amount" ValueChanged="v => _amount = v"
+                          CategoryId="_categoryId" OnSave="SaveAsync" IsSaving="_saving" />
         </div>
 
         @* ── 카테고리 ── *@
