@@ -31,7 +31,7 @@ var app = builder.Build();
 // Production: 기존 DB를 /data 볼륨으로 이전 (최초 1회)
 if (app.Environment.IsProduction())
 {
-    const string newPath = "/data/household_budget.db";
+    const string newPath = "/data/household.db";
     const string oldPath = "/app/household_budget.db";
     if (!File.Exists(newPath) && File.Exists(oldPath))
     {
