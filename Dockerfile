@@ -3,7 +3,7 @@ WORKDIR /src
 COPY ["HouseholdBudget.csproj", "."]
 RUN dotnet restore
 COPY . .
-RUN dotnet publish -c Release -o /app/publish
+RUN dotnet publish HouseholdBudget.csproj -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app

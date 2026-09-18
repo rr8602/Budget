@@ -5,3 +5,6 @@ obj/
 *.db-wal
 .git/
 wwwroot/uploads/
+tests/
+*.sln
+*.slnx

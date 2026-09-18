@@ -103,9 +103,7 @@
         if (!firstRender) return;
 
         var saved = await JS.InvokeAsync<string?>("themeInterop.getSaved", "hb-theme");
-        _isDarkMode = saved is not null
-            ? saved == "dark"
-            : await JS.InvokeAsync<bool>("themeInterop.getSystemDark");
+        _isDarkMode = saved == "dark"; // 저장값 없으면 라이트 기본
 
         await JS.InvokeVoidAsync("themeInterop.setDark", _isDarkMode);
         StateHasChanged();
