@@ -26,6 +26,13 @@
         </div>
 
         <MudSpacer />
+        @if (_canInstall)
+        {
+            <MudTooltip Text="앱 설치">
+                <MudIconButton Color="Color.Inherit" Icon="@Icons.Material.Filled.InstallMobile"
+                               OnClick="InstallPwa" />
+            </MudTooltip>
+        }
         <MudTooltip Text="@(_isDarkMode ? "라이트 모드" : "다크 모드")">
             <MudIconButton Color="Color.Inherit"
                            Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
@@ -50,6 +57,7 @@
 @code {
     private bool _drawerOpen = true;
     private bool _isDarkMode;
+    private bool _canInstall;
 
     private readonly MudTheme _theme = new()
     {
@@ -106,8 +114,9 @@
         var isDark = saved == "dark";
         await JS.InvokeVoidAsync("themeInterop.setDark", isDark);
 
-        // 실제 변경된 경우에만 재렌더 (불필요한 StateHasChanged 제거)
-        if (_isDarkMode != isDark)
+        _canInstall = await JS.InvokeAsync<bool>("pwaInterop.canInstall");
+
+        if (_isDarkMode != isDark || _canInstall)
         {
             _isDarkMode = isDark;
             StateHasChanged();
@@ -115,6 +124,12 @@
     }
 
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+
+    private async Task InstallPwa()
+    {
+        await JS.InvokeAsync<bool>("pwaInterop.install");
+        _canInstall = false;
+    }
 
     private async Task ToggleTheme()
     {

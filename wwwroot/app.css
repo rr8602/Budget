@@ -5,6 +5,9 @@
 /* ── 기본 ── */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* 마우스/터치로 포커스 시 outline 제거 (키보드 탐색은 유지) */
+:focus:not(:focus-visible) { outline: none !important; }
+
 html, body {
     font-family: 'Roboto', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
     scroll-behavior: smooth;
