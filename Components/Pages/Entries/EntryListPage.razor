@@ -71,54 +71,52 @@ else if (_entries.Count == 0)
 else
 {
     <div class="entries-list" @key="_renderKey">
-    @* ── PC 테이블 ── *@
-    <MudHidden Breakpoint="Breakpoint.SmAndDown">
-        <div class="panel pa-0">
-            <MudTable T="Entry" Items="_entries" Hover="true"
-                      OnRowClick="OnRowClick" RowStyle="cursor:pointer;"
-                      Elevation="0" Class="hb-table">
-                <HeaderContent>
-                    <MudTh Style="width:72px;">날짜</MudTh>
-                    <MudTh>내용</MudTh>
-                    <MudTh Style="width:130px;">카테고리</MudTh>
-                    <MudTh Style="width:90px;">결제자</MudTh>
-                    <MudTh Style="width:110px;">결제수단</MudTh>
-                    <MudTh Style="width:110px;text-align:right;">금액</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd><span class="tbl-date">@context.Date.ToString("MM/dd")</span></MudTd>
-                    <MudTd>
-                        <div class="tbl-content">
-                            <span class="tbl-main">@context.Content</span>
-                            @if (!string.IsNullOrEmpty(context.Memo))
-                            {
-                                <span class="tbl-sub">@context.Memo</span>
-                            }
-                        </div>
-                    </MudTd>
-                    <MudTd>
-                        <span class="cat-chip" style="@GetCatStyle(context.Category?.ParentName)">
-                            @context.Category?.ParentName
-                        </span>
-                    </MudTd>
-                    <MudTd><span class="tbl-muted">@context.Payer?.Name</span></MudTd>
-                    <MudTd><span class="tbl-muted">@context.PaymentMethod?.Name</span></MudTd>
-                    <MudTd Style="text-align:right;">
-                        <span class="tbl-amount">@context.Amount.ToString("N0")원</span>
-                    </MudTd>
-                </RowTemplate>
-                <FooterContent>
-                    <MudTd colspan="5" Style="text-align:right;font-weight:700;">지출 내역 합계</MudTd>
-                    <MudTd Style="text-align:right;font-weight:800;font-size:0.95rem;color:var(--mud-palette-primary);white-space:nowrap;">
-                        @_monthlyTotal.ToString("N0")원
-                    </MudTd>
-                </FooterContent>
-            </MudTable>
-        </div>
-    </MudHidden>
+    @* ── PC 테이블 (CSS @media 제어 — MudHidden은 JS 감지라 1초 지연) ── *@
+    <div class="panel pa-0 entry-table-pc">
+        <MudTable T="Entry" Items="_entries" Hover="true"
+                  OnRowClick="OnRowClick" RowStyle="cursor:pointer;"
+                  Elevation="0" Class="hb-table">
+            <HeaderContent>
+                <MudTh Style="width:72px;">날짜</MudTh>
+                <MudTh>내용</MudTh>
+                <MudTh Style="width:130px;">카테고리</MudTh>
+                <MudTh Style="width:90px;">결제자</MudTh>
+                <MudTh Style="width:110px;">결제수단</MudTh>
+                <MudTh Style="width:110px;text-align:right;">금액</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd><span class="tbl-date">@context.Date.ToString("MM/dd")</span></MudTd>
+                <MudTd>
+                    <div class="tbl-content">
+                        <span class="tbl-main">@context.Content</span>
+                        @if (!string.IsNullOrEmpty(context.Memo))
+                        {
+                            <span class="tbl-sub">@context.Memo</span>
+                        }
+                    </div>
+                </MudTd>
+                <MudTd>
+                    <span class="cat-chip" style="@GetCatStyle(context.Category?.ParentName)">
+                        @context.Category?.ParentName
+                    </span>
+                </MudTd>
+                <MudTd><span class="tbl-muted">@context.Payer?.Name</span></MudTd>
+                <MudTd><span class="tbl-muted">@context.PaymentMethod?.Name</span></MudTd>
+                <MudTd Style="text-align:right;">
+                    <span class="tbl-amount">@context.Amount.ToString("N0")원</span>
+                </MudTd>
+            </RowTemplate>
+            <FooterContent>
+                <MudTd colspan="5" Style="text-align:right;font-weight:700;">지출 내역 합계</MudTd>
+                <MudTd Style="text-align:right;font-weight:800;font-size:0.95rem;color:var(--mud-palette-primary);white-space:nowrap;">
+                    @_monthlyTotal.ToString("N0")원
+                </MudTd>
+            </FooterContent>
+        </MudTable>
+    </div>
 
-    @* ── 모바일 카드 ── *@
-    <MudHidden Breakpoint="Breakpoint.MdAndUp">
+    @* ── 모바일 카드 (CSS @media 제어) ── *@
+    <div class="entry-cards-mobile">
         @foreach (var e in _entries)
         {
             <div class="mobile-card"
@@ -137,7 +135,7 @@ else
                 </div>
             </div>
         }
-    </MudHidden>
+    </div>
     </div>
 }
 

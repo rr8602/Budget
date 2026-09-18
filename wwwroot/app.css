@@ -1281,6 +1281,18 @@ body.hb-dark .insight-amber  { background: rgba(210,153,34,0.15);  color: #D2992
 }
 
 /* ══════════════════════════════════════════
+   지출 목록 PC/모바일 전환 (CSS @media — MudHidden 대체)
+══════════════════════════════════════════ */
+/* PC 테이블: 960px 미만에서 숨김 */
+.entry-table-pc  { display: none; }
+/* 모바일 카드: 960px 이상에서 숨김 */
+.entry-cards-mobile { display: block; }
+@media (min-width: 960px) {
+    .entry-table-pc     { display: block; }
+    .entry-cards-mobile { display: none; }
+}
+
+/* ══════════════════════════════════════════
    지출 목록 부드러운 전환
 ══════════════════════════════════════════ */
 @keyframes listFadeIn {
