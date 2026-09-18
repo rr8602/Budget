@@ -1,5 +1,6 @@
-// Blazor Server는 SignalR 연결이 필요하므로 fetch를 인터셉트하지 않음.
-// PWA 설치 가능(installable) 조건 충족용 최소 서비스 워커.
+// Blazor Server는 SignalR 연결이 필요하므로 fetch를 캐싱하지 않음.
+// fetch 핸들러 등록은 PWA 설치 조건 충족용 (respondWith 미호출 → 브라우저 기본 동작 유지).
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => event.waitUntil(clients.claim()));
+self.addEventListener('fetch', () => {});
