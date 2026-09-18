@@ -1,8 +1,10 @@
 @page "/entries"
 @rendermode InteractiveServer
-@inject EntryService     EntrySvc
-@inject FixedItemService FixedItemSvc
-@inject NavigationManager Nav
+@inject EntryService            EntrySvc
+@inject FixedItemService        FixedItemSvc
+@inject NavigationManager       Nav
+@inject PersistentComponentState ApplicationState
+@implements IDisposable
 
 <PageTitle>지출 내역</PageTitle>
 
@@ -69,6 +71,7 @@ else if (_entries.Count == 0)
 }
 else
 {
+    <div class="entries-list" @key="_renderKey">
     @* ── PC 테이블 ── *@
     <MudHidden Breakpoint="Breakpoint.SmAndDown">
         <div class="panel pa-0">
@@ -136,15 +139,28 @@ else
             </div>
         }
     </MudHidden>
+    </div>
 }
 
 @code {
-    private int _year  = DateTime.Today.Year;
-    private int _month = DateTime.Today.Month;
-    private List<Entry> _entries      = [];
+    // ── SSR → 하이드레이션 데이터 유지 (1초 딜레이 제거) ──
+    private PersistingComponentStateSubscription _persisting;
+
+    private record PersistedEntries(
+        List<EntryRow> Rows, decimal MonthlyTotal, decimal FixedTotal, int Year, int Month);
+
+    private record EntryRow(
+        Guid Id, DateOnly Date, decimal Amount, string Content, string? Memo,
+        string? CatParent, string? CatName, string? Payer, string? Method);
+
+    // ── 상태 ──
+    private int         _year        = DateTime.Today.Year;
+    private int         _month       = DateTime.Today.Month;
+    private List<Entry> _entries     = [];
     private decimal     _monthlyTotal;
     private decimal     _fixedTotal;
     private bool        _loading;
+    private int         _renderKey;  // 월 변경 시 fade-in 재실행용
 
     private bool IsCurrentMonth => _year == DateTime.Today.Year && _month == DateTime.Today.Month;
 
@@ -155,37 +171,84 @@ else
     ];
     private readonly Dictionary<string, string> _colorMap = [];
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        _persisting = ApplicationState.RegisterOnPersisting(PersistEntries);
+
+        if (ApplicationState.TryTakeFromJson<PersistedEntries>("entry-list", out var cached) && cached is not null)
+        {
+            // 하이드레이션: SSR에서 저장된 데이터를 즉시 복원 (DB 재조회 없음)
+            _year         = cached.Year;
+            _month        = cached.Month;
+            _monthlyTotal = cached.MonthlyTotal;
+            _fixedTotal   = cached.FixedTotal;
+            _entries      = cached.Rows.Select(r => new Entry
+            {
+                Id            = r.Id,
+                Date          = r.Date,
+                Amount        = r.Amount,
+                Content       = r.Content,
+                Memo          = r.Memo,
+                Category      = new Category      { ParentName = r.CatParent ?? "", Name = r.CatName ?? "" },
+                Payer         = new Payer         { Name = r.Payer  ?? "" },
+                PaymentMethod = new PaymentMethod { Name = r.Method ?? "" }
+            }).ToList();
+            AssignColors();
+        }
+        else
+        {
+            await LoadAsync(showSpinner: false);
+        }
+    }
+
+    private Task PersistEntries()
+    {
+        ApplicationState.PersistAsJson("entry-list", new PersistedEntries(
+            _entries.Select(e => new EntryRow(
+                e.Id, e.Date, e.Amount, e.Content, e.Memo,
+                e.Category?.ParentName, e.Category?.Name,
+                e.Payer?.Name, e.PaymentMethod?.Name)).ToList(),
+            _monthlyTotal, _fixedTotal, _year, _month));
+        return Task.CompletedTask;
+    }
+
+    public void Dispose() => _persisting.Dispose();
 
     private async Task PrevMonth()
     {
         if (_month == 1) { _year--; _month = 12; } else _month--;
-        await LoadAsync();
+        await LoadAsync(showSpinner: true);
     }
 
     private async Task NextMonth()
     {
         if (IsCurrentMonth) return;
         if (_month == 12) { _year++; _month = 1; } else _month++;
-        await LoadAsync();
+        await LoadAsync(showSpinner: true);
     }
 
     private void OnRowClick(TableRowClickEventArgs<Entry> args)
         => Nav.NavigateTo($"/entries/{args.Item!.Id}/edit");
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(bool showSpinner = true)
     {
-        _loading = true;
+        if (showSpinner)
+        {
+            _loading = true;
+            StateHasChanged();
+        }
         _entries      = await EntrySvc.GetMonthlyAsync(_year, _month);
         _monthlyTotal = _entries.Sum(e => e.Amount);
         _fixedTotal   = await FixedItemSvc.GetTotalAsync();
+        _colorMap.Clear();
         AssignColors();
         _loading = false;
+        _renderKey++;  // 목록 교체 시 fade-in 재실행
     }
 
     private void AssignColors()
     {
-        var idx = _colorMap.Count;
+        var idx = 0;
         foreach (var cat in _entries.Select(e => e.Category?.ParentName ?? "기타").Distinct())
         {
             if (!_colorMap.ContainsKey(cat))

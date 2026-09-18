@@ -108,13 +108,14 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // 페이지 이동 시마다 자동 포커스 outline 제거
+        await JS.InvokeVoidAsync("themeInterop.blurActive");
+
         if (!firstRender) return;
 
         var saved = await JS.InvokeAsync<string?>("themeInterop.getSaved", "hb-theme");
         var isDark = saved == "dark";
         await JS.InvokeVoidAsync("themeInterop.setDark", isDark);
-
-        await JS.InvokeVoidAsync("themeInterop.blurActive");
         _canInstall = await JS.InvokeAsync<bool>("pwaInterop.canInstall");
 
         if (_isDarkMode != isDark || _canInstall)

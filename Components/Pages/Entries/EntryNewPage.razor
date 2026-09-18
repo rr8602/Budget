@@ -7,7 +7,7 @@
 
 <PageTitle>지출 입력</PageTitle>
 
-<div class="form-layout">
+<div class="form-layout entry-form-page">
 
     @* ── Sticky 헤더 (저장 버튼 포함) ── *@
     <div class="form-header-sticky">
@@ -24,54 +24,53 @@
         </MudButton>
     </div>
 
-    @* ── 날짜 + 금액 ── *@
-    <div class="panel mb-4">
-        <div class="form-section-title">기본 정보</div>
-        <MudDatePicker Label="날짜" @bind-Date="_date"
-                       DateFormat="yyyy-MM-dd" Editable="true"
-                       Variant="Variant.Outlined" Class="mb-4" />
-        <div class="form-section-title">금액</div>
-        <AmountKeypad Value="_amount" ValueChanged="v => _amount = v" />
-    </div>
+    <div class="entry-form-body">
+        <div class="entry-form-left">
+            @* ── 날짜 + 금액 ── *@
+            <div class="panel">
+                <div class="form-section-title">날짜</div>
+                <MudDatePicker Label="날짜" @bind-Date="_date"
+                               DateFormat="yyyy-MM-dd" Editable="true"
+                               Variant="Variant.Outlined" Class="mb-3" />
+                <div class="form-section-title">금액</div>
+                <AmountKeypad Value="_amount" ValueChanged="v => _amount = v" />
+            </div>
 
-    @* ── 카테고리 ── *@
-    <div class="panel mb-4">
-        <div class="form-section-title">카테고리</div>
-        <CategoryTileGrid SelectedCategoryId="_categoryId"
-                          SelectedCategoryIdChanged="v => _categoryId = v" />
-    </div>
-
-    @* ── 결제 정보 ── *@
-    <div class="panel mb-4">
-        <div class="form-section-title">결제 정보</div>
-        <div class="d-flex gap-3 mb-3">
-            <MudSelect T="int" Label="결제자" @bind-Value="_payerId"
-                       Variant="Variant.Outlined" Class="flex-1">
-                @foreach (var p in _payers)
-                {
-                    <MudSelectItem Value="@p.Id">@p.Name</MudSelectItem>
-                }
-            </MudSelect>
-            <MudSelect T="int" Label="결제수단" @bind-Value="_paymentMethodId"
-                       Variant="Variant.Outlined" Class="flex-1">
-                @foreach (var m in _methods)
-                {
-                    <MudSelectItem Value="@m.Id">@m.Name</MudSelectItem>
-                }
-            </MudSelect>
+            @* ── 카테고리 ── *@
+            <div class="panel">
+                <div class="form-section-title">카테고리</div>
+                <CategoryTileGrid SelectedCategoryId="_categoryId"
+                                  SelectedCategoryIdChanged="v => _categoryId = v" />
+            </div>
         </div>
-        <MudTextField Label="내용 (상호명)" @bind-Value="_content"
-                      Variant="Variant.Outlined"
-                      Placeholder="예: 홈플러스, 스타벅스" Class="mb-3" />
-        <MudTextField Label="메모 (선택)" @bind-Value="_memo"
-                      Variant="Variant.Outlined" Placeholder="추가 내용" />
-    </div>
 
-    @* ── 영수증 ── *@
-    <div class="panel mb-6">
-        <div class="form-section-title">영수증 첨부</div>
-        <ReceiptUpload ReceiptUrl="@_receiptUrl"
-                       ReceiptUrlChanged="v => _receiptUrl = v" />
+        <div class="entry-form-right">
+            @* ── 결제 정보 ── *@
+            <div class="panel">
+                <div class="form-section-title">결제 정보</div>
+                <div class="d-flex gap-3 mb-3">
+                    <MudSelect T="int" Label="결제자" @bind-Value="_payerId"
+                               Variant="Variant.Outlined" Class="flex-1">
+                        @foreach (var p in _payers)
+                        {
+                            <MudSelectItem Value="@p.Id">@p.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudSelect T="int" Label="결제수단" @bind-Value="_paymentMethodId"
+                               Variant="Variant.Outlined" Class="flex-1">
+                        @foreach (var m in _methods)
+                        {
+                            <MudSelectItem Value="@m.Id">@m.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </div>
+                <MudTextField Label="내용 (상호명)" @bind-Value="_content"
+                              Variant="Variant.Outlined"
+                              Placeholder="예: 홈플러스, 스타벅스" Class="mb-3" />
+                <MudTextField Label="메모 (선택)" @bind-Value="_memo"
+                              Variant="Variant.Outlined" Placeholder="추가 내용" />
+            </div>
+        </div>
     </div>
 
 </div>
