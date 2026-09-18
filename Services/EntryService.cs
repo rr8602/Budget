@@ -31,11 +31,19 @@ public class EntryService(AppDbContext db)
 
     public async Task<Entry?> GetByIdAsync(Guid id)
     {
-        return await db.Entries
-            .Include(e => e.Category)
-            .Include(e => e.Payer)
-            .Include(e => e.PaymentMethod)
-            .FirstOrDefaultAsync(e => e.Id == id);
+        // FindAsync: EF Core 로컬 추적 캐시 우선 확인 → 없으면 DB 조회
+        var entry = await db.Entries.FindAsync(id);
+        if (entry is null) return null;
+
+        // 내비게이션 프로퍼티가 아직 로드되지 않은 경우에만 조회
+        if (entry.Category is null)
+            await db.Entry(entry).Reference(e => e.Category).LoadAsync();
+        if (entry.Payer is null)
+            await db.Entry(entry).Reference(e => e.Payer).LoadAsync();
+        if (entry.PaymentMethod is null)
+            await db.Entry(entry).Reference(e => e.PaymentMethod).LoadAsync();
+
+        return entry;
     }
 
     public async Task<bool> CreateAsync(Entry entry)

@@ -90,9 +90,8 @@ else
         _payers  = await LookupSvc.GetPayersAsync();
         _methods = await LookupSvc.GetPaymentMethodsAsync();
 
-        try { _entry = await EntrySvc.GetByIdAsync(Id); }
-        catch (Exception ex) { Snackbar.Add($"예외: {ex.GetType().Name} {ex.Message}", Severity.Error); return; }
-        if (_entry is null) { Snackbar.Add($"없음: Id={Id}", Severity.Error); return; }
+        _entry = await EntrySvc.GetByIdAsync(Id);
+        if (_entry is null) { Nav.NavigateTo("/entries"); return; }
 
         _date            = _entry.Date.ToDateTime(TimeOnly.MinValue);
         _amount          = _entry.Amount;
