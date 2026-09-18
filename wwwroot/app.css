@@ -584,6 +584,13 @@ body.hb-dark .budget-cat-remaining-neg { color: #F85149; }
     color: var(--mud-palette-text-primary);
     margin: 0 6px 0 0;
     line-height: 1.2;
+    outline: none;
+}
+
+/* 햄버거 버튼: CSS @media로 제어 (MudHidden 대체 → SSR 즉시 렌더) */
+.hamburger-btn { display: flex; }
+@media (min-width: 960px) {
+    .hamburger-btn { display: none; }
 }
 
 /* ══════════════════════════════════════════

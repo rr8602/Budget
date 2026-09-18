@@ -8,11 +8,11 @@
 
 <MudLayout>
     <MudAppBar Elevation="0" Color="Color.Primary">
-        @* 모바일에서만 햄버거 표시 *@
-        <MudHidden Breakpoint="Breakpoint.MdAndUp">
+        @* 모바일에서만 햄버거 표시 (CSS @media로 즉시 렌더 — MudHidden은 JS 감지라 1초 지연) *@
+        <div class="hamburger-btn">
             <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
                            Edge="Edge.Start" OnClick="ToggleDrawer" />
-        </MudHidden>
+        </div>
 
         <div class="appbar-brand">
             <div class="appbar-icon-wrap">
@@ -103,10 +103,15 @@
         if (!firstRender) return;
 
         var saved = await JS.InvokeAsync<string?>("themeInterop.getSaved", "hb-theme");
-        _isDarkMode = saved == "dark"; // 저장값 없으면 라이트 기본
+        var isDark = saved == "dark";
+        await JS.InvokeVoidAsync("themeInterop.setDark", isDark);
 
-        await JS.InvokeVoidAsync("themeInterop.setDark", _isDarkMode);
-        StateHasChanged();
+        // 실제 변경된 경우에만 재렌더 (불필요한 StateHasChanged 제거)
+        if (_isDarkMode != isDark)
+        {
+            _isDarkMode = isDark;
+            StateHasChanged();
+        }
     }
 
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
