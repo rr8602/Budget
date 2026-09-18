@@ -1,5 +1,6 @@
 using HouseholdBudget.Data;
 using HouseholdBudget.Data.Seed;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 /// <summary>
@@ -13,6 +14,7 @@ public class MigrationTests : IDisposable
 
     public void Dispose()
     {
+        SqliteConnection.ClearAllPools();
         foreach (var path in new[] { _dbPath, _dbPath + "-shm", _dbPath + "-wal" })
             if (File.Exists(path)) File.Delete(path);
     }

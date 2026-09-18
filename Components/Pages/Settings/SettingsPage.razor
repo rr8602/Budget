@@ -218,9 +218,10 @@
 
     private async Task DeleteCategoryAsync(int id)
     {
-        var ok = await CategoryService.DeleteAsync(id);
-        if (ok) { Snackbar.Add("삭제되었습니다.", Severity.Success); await LoadCategoriesAsync(); }
-        else      Snackbar.Add("삭제에 실패했습니다. (지출 내역에서 사용 중일 수 있습니다.)", Severity.Error);
+        var result = await CategoryService.DeleteAsync(id);
+        if (result == true)  { Snackbar.Add("삭제되었습니다.", Severity.Success); await LoadCategoriesAsync(); }
+        else if (result == null) { Snackbar.Add("이미 삭제된 항목입니다.", Severity.Warning); await LoadCategoriesAsync(); }
+        else                       Snackbar.Add("삭제에 실패했습니다. (지출 내역에서 사용 중일 수 있습니다.)", Severity.Error);
     }
 
     private void OnCategorySelected(Category? cat)
@@ -261,8 +262,9 @@
 
     private async Task DeleteFixedItemAsync(int id)
     {
-        var ok = await FixedItemService.DeleteAsync(id);
-        if (ok) { Snackbar.Add("삭제되었습니다.", Severity.Success); await LoadFixedItemsAsync(); }
-        else      Snackbar.Add("삭제에 실패했습니다.", Severity.Error);
+        var result = await FixedItemService.DeleteAsync(id);
+        if (result == true)  { Snackbar.Add("삭제되었습니다.", Severity.Success); await LoadFixedItemsAsync(); }
+        else if (result == null) { Snackbar.Add("이미 삭제된 항목입니다.", Severity.Warning); await LoadFixedItemsAsync(); }
+        else                       Snackbar.Add("삭제에 실패했습니다.", Severity.Error);
     }
 }

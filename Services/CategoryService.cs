@@ -34,16 +34,17 @@ public class CategoryService(AppDbContext db)
         catch { return false; }
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool?> DeleteAsync(int id)
     {
         try
         {
             var cat = await db.Categories.FindAsync(id);
-            if (cat is null) return false;
+            if (cat is null) return null;
             db.Categories.Remove(cat);
             await db.SaveChangesAsync();
             return true;
         }
+        catch (DbUpdateConcurrencyException) { return null; }
         catch { return false; }
     }
 }

@@ -111,16 +111,18 @@ else
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: Installment updated })
         {
-            var ok = await InstallmentService.UpdateAsync(updated);
-            if (ok) { Snackbar.Add("수정되었습니다.", Severity.Success); await LoadAsync(); }
-            else      Snackbar.Add("저장에 실패했습니다.", Severity.Error);
+            var upd = await InstallmentService.UpdateAsync(updated);
+            if (upd == true)  { Snackbar.Add("수정되었습니다.", Severity.Success); await LoadAsync(); }
+            else if (upd == null) { Snackbar.Add("이미 삭제된 항목입니다.", Severity.Warning); await LoadAsync(); }
+            else                    Snackbar.Add("저장에 실패했습니다.", Severity.Error);
         }
     }
 
     private async Task DeleteAsync(int id)
     {
-        var ok = await InstallmentService.DeleteAsync(id);
-        if (ok) { Snackbar.Add("삭제되었습니다.", Severity.Success); await LoadAsync(); }
+        var result = await InstallmentService.DeleteAsync(id);
+        if (result == true)  { Snackbar.Add("삭제되었습니다.", Severity.Info); await LoadAsync(); }
+        else if (result == null) { Snackbar.Add("이미 삭제된 항목입니다.", Severity.Warning); await LoadAsync(); }
         else      Snackbar.Add("삭제에 실패했습니다.", Severity.Error);
     }
 }

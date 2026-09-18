@@ -69,16 +69,17 @@ public class FixedItemService(AppDbContext db)
         catch { return false; }
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool?> DeleteAsync(int id)
     {
         try
         {
             var item = await db.FixedItems.FindAsync(id);
-            if (item is null) return false;
+            if (item is null) return null;
             db.FixedItems.Remove(item);
             await db.SaveChangesAsync();
             return true;
         }
+        catch (DbUpdateConcurrencyException) { return null; }
         catch { return false; }
     }
 }

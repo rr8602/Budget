@@ -1,9 +1,13 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using HouseholdBudget.Data;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
@@ -18,6 +22,14 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // SDK 10 + .slnx 조합에서 MvcTestingAppManifest.json 경로 이중화 버그 우회.
+        // 매니페스트 대신 콘텐츠 루트를 직접 지정한다.
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "HouseholdBudget.csproj")))
+            dir = dir.Parent;
+        if (dir != null)
+            builder.UseContentRoot(dir.FullName);
+
         builder.UseEnvironment("Production");
 
         builder.ConfigureAppConfiguration((_, config) =>
@@ -44,6 +56,7 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
+        SqliteConnection.ClearAllPools();
         foreach (var path in new[] { _dbPath, _dbPath + "-shm", _dbPath + "-wal" })
             if (File.Exists(path)) File.Delete(path);
         if (Directory.Exists(_uploadPath))
@@ -71,7 +84,8 @@ public class ReceiptUploadTests : IClassFixture<TestWebAppFactory>
         var response = await _client.PostAsync("/api/receipts/upload", content);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var url = await response.Content.ReadAsStringAsync();
+        var url = await response.Content.ReadFromJsonAsync<string>();
+        Assert.NotNull(url);
         Assert.StartsWith("/uploads/receipts/", url);
         Assert.EndsWith(".jpg", url);
     }
@@ -87,7 +101,8 @@ public class ReceiptUploadTests : IClassFixture<TestWebAppFactory>
         var response = await _client.PostAsync("/api/receipts/upload", content);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var url = await response.Content.ReadAsStringAsync();
+        var url = await response.Content.ReadFromJsonAsync<string>();
+        Assert.NotNull(url);
         Assert.EndsWith(".png", url);
     }
 

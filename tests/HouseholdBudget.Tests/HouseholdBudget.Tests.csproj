@@ -24,4 +24,20 @@
   <ItemGroup>
     <ProjectReference Include="..\..\HouseholdBudget.csproj" />
   </ItemGroup>
+
+  <!--
+    SDK 10 + .slnx 조합에서 MvcTestingAppManifest.json의 TargetPath가
+    솔루션 루트 기준 상대경로로 계산되어 이중 경로가 생기는 버그 우회.
+    콘텐츠 루트는 TestWebAppFactory에서 직접 지정.
+  -->
+  <Target Name="_FixMvcTestingManifest"
+          AfterTargets="GetCopyToOutputDirectoryItems"
+          BeforeTargets="ComputeFilesToCopy">
+    <ItemGroup>
+      <AllItemsFullPathWithTargetPath
+        Remove="@(AllItemsFullPathWithTargetPath)"
+        Condition="'%(Filename)%(Extension)' == 'MvcTestingAppManifest.json'" />
+    </ItemGroup>
+  </Target>
+
 </Project>

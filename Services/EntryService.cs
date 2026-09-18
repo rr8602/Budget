@@ -52,13 +52,18 @@ public class EntryService(AppDbContext db)
         }
     }
 
-    public async Task<bool> UpdateAsync(Entry entry)
+    public async Task<bool?> UpdateAsync(Entry entry)
     {
         try
         {
             db.Entries.Update(entry);
+            entry.UpdatedAt = DateTime.UtcNow;  // Update() 호출 후 변경 → EF가 original/current 구분
             await db.SaveChangesAsync();
             return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return null;  // 삭제됐거나 다른 사람이 먼저 수정함
         }
         catch
         {
@@ -66,15 +71,19 @@ public class EntryService(AppDbContext db)
         }
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool?> DeleteAsync(Guid id)
     {
         try
         {
             var entry = await db.Entries.FindAsync(id);
-            if (entry is null) return false;
+            if (entry is null) return null;
             db.Entries.Remove(entry);
             await db.SaveChangesAsync();
             return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return null;  // FindAsync가 EF 캐시를 반환했으나 DB에서는 이미 삭제됨
         }
         catch
         {

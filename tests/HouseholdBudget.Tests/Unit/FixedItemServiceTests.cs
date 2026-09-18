@@ -1,5 +1,7 @@
+using HouseholdBudget.Data;
 using HouseholdBudget.Data.Entities;
 using HouseholdBudget.Services;
+using Microsoft.EntityFrameworkCore;
 
 public class FixedItemServiceTests : IDisposable
 {
@@ -116,5 +118,21 @@ public class FixedItemServiceTests : IDisposable
 
         Assert.False(statuses[0].IsShortfall);
         Assert.False(statuses[0].IsUnconfirmed);
+    }
+
+    // ── 동시성 테스트 ───────────────────────────────────────────────
+
+    [Fact]
+    public async Task DeleteAsync_AlreadyDeletedByOther_ReturnsNull()
+    {
+        // 상대방이 먼저 삭제한 항목을 다시 삭제하면 null
+        var item = await AddFixedItemAsync(300_000);
+
+        using var db2 = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_tdb.Connection).Options);
+        await new FixedItemService(db2).DeleteAsync(item.Id);  // 상대방 삭제
+
+        var result = await _svc.DeleteAsync(item.Id);          // 내 삭제 시도
+        Assert.Null(result);
     }
 }

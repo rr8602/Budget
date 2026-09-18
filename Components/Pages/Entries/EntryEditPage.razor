@@ -135,18 +135,20 @@ else
             _entry.Memo            = string.IsNullOrWhiteSpace(_memo) ? null : _memo.Trim();
             _entry.ReceiptUrl      = _receiptUrl;
 
-            var ok = await EntrySvc.UpdateAsync(_entry);
-            if (ok) { Snackbar.Add("수정되었습니다.", Severity.Success); Nav.NavigateTo("/entries"); }
-            else      Snackbar.Add("수정에 실패했습니다.", Severity.Error);
+            var result = await EntrySvc.UpdateAsync(_entry);
+            if (result == true)  { Snackbar.Add("수정되었습니다.", Severity.Success); Nav.NavigateTo("/entries"); }
+            else if (result == null) { Snackbar.Add("다른 사람이 먼저 수정하거나 삭제한 항목입니다. 다시 확인해 주세요.", Severity.Warning); Nav.NavigateTo("/entries"); }
+            else                       Snackbar.Add("수정에 실패했습니다.", Severity.Error);
         }
         finally { _saving = false; }
     }
 
     private async Task DeleteAsync()
     {
-        var ok = await EntrySvc.DeleteAsync(Id);
-        if (ok) { Snackbar.Add("삭제되었습니다.", Severity.Info); Nav.NavigateTo("/entries"); }
-        else      Snackbar.Add("삭제에 실패했습니다.", Severity.Error);
+        var result = await EntrySvc.DeleteAsync(Id);
+        if (result == true)  { Snackbar.Add("삭제되었습니다.", Severity.Info);    Nav.NavigateTo("/entries"); }
+        else if (result == null) { Snackbar.Add("이미 삭제된 항목입니다.", Severity.Warning); Nav.NavigateTo("/entries"); }
+        else                       Snackbar.Add("삭제에 실패했습니다.", Severity.Error);
     }
 
     // DB에 URL이 남아있어도 실제 파일이 없으면 null 처리

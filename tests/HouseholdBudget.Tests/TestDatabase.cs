@@ -11,6 +11,7 @@ public sealed class TestDatabase : IDisposable
 {
     private readonly SqliteConnection _conn;
     public AppDbContext Db { get; }
+    public SqliteConnection Connection => _conn;
 
     public TestDatabase()
     {

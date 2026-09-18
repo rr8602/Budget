@@ -1,5 +1,7 @@
+using HouseholdBudget.Data;
 using HouseholdBudget.Data.Entities;
 using HouseholdBudget.Services;
+using Microsoft.EntityFrameworkCore;
 
 public class EntryServiceTests : IDisposable
 {
@@ -44,10 +46,10 @@ public class EntryServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteAsync_NonExistentId_ReturnsFalse()
+    public async Task DeleteAsync_NonExistentId_ReturnsNull()
     {
         var ok = await _svc.DeleteAsync(Guid.NewGuid());
-        Assert.False(ok);
+        Assert.Null(ok);
     }
 
     [Fact]
@@ -103,6 +105,68 @@ public class EntryServiceTests : IDisposable
         Assert.Equal(45_000, result[5]);  // Day 5
         Assert.Equal(45_000, result[30]); // Day 30 (이후 동일)
     }
+
+    // ── 동시성 테스트 ───────────────────────────────────────────────
+
+    [Fact]
+    public async Task DeleteAsync_AlreadyDeletedByOther_ReturnsNull()
+    {
+        // 상대방이 먼저 삭제한 항목을 다시 삭제하면 null
+        var (catId, payerId, methodId) = await _tdb.SeedLookupAsync();
+        var entry = MakeEntry(catId, payerId, methodId, DateOnly.FromDateTime(DateTime.Today), 5_000);
+        await _svc.CreateAsync(entry);
+
+        using var db2 = MakeDb2();
+        await new EntryService(db2).DeleteAsync(entry.Id);  // 상대방 삭제
+
+        var result = await _svc.DeleteAsync(entry.Id);      // 내 삭제 시도
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_EntryDeletedByOther_ReturnsNull()
+    {
+        // 상대방이 삭제한 항목을 수정하면 null
+        var (catId, payerId, methodId) = await _tdb.SeedLookupAsync();
+        var entry = MakeEntry(catId, payerId, methodId, DateOnly.FromDateTime(DateTime.Today), 10_000);
+        await _svc.CreateAsync(entry);
+
+        var loaded = await _svc.GetByIdAsync(entry.Id);     // 내가 편집 화면 진입
+
+        using var db2 = MakeDb2();
+        await new EntryService(db2).DeleteAsync(entry.Id);  // 상대방 삭제
+
+        loaded!.Amount = 99_999;
+        var result = await _svc.UpdateAsync(loaded);        // 내가 저장 시도
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ConcurrentEdit_ReturnsNull()
+    {
+        // 상대방이 먼저 저장한 항목을 (stale 데이터로) 수정하면 null
+        var (catId, payerId, methodId) = await _tdb.SeedLookupAsync();
+        var entry = MakeEntry(catId, payerId, methodId, DateOnly.FromDateTime(DateTime.Today), 10_000);
+        await _svc.CreateAsync(entry);
+
+        var entryA = await _svc.GetByIdAsync(entry.Id);    // 내가 편집 화면 진입
+
+        using var db2 = MakeDb2();
+        var svc2   = new EntryService(db2);
+        var entryB = await svc2.GetByIdAsync(entry.Id);
+        entryB!.Amount = 99_000;
+        var resultB = await svc2.UpdateAsync(entryB);       // 상대방이 먼저 저장
+        Assert.True(resultB);
+
+        entryA!.Amount = 55_000;
+        var resultA = await _svc.UpdateAsync(entryA);       // 내가 저장 시도 (UpdatedAt 충돌)
+        Assert.Null(resultA);
+    }
+
+    private AppDbContext MakeDb2()
+        => new(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_tdb.Connection).Options);
+
+    // ────────────────────────────────────────────────────────────────
 
     [Fact]
     public async Task GetMonthlyTotalByCategoryAsync_GroupsByParentName()

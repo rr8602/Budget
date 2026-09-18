@@ -32,10 +32,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(x => x.Category).WithMany(c => c.FixedItems).HasForeignKey(x => x.CategoryId);
         });
 
+        modelBuilder.Entity<Category>(e =>
+        {
+            e.HasIndex(x => new { x.ParentName, x.Name }).IsUnique();
+        });
+
         modelBuilder.Entity<Budget>(e =>
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.MonthlyExtra).HasColumnType("TEXT");
+            e.HasIndex(x => x.CategoryParentName).IsUnique();
         });
 
         modelBuilder.Entity<MonthlyFixedActual>(e =>

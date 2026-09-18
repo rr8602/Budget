@@ -32,6 +32,9 @@ namespace HouseholdBudget.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CategoryParentName")
+                        .IsUnique();
+
                     b.ToTable("Budgets");
                 });
 
@@ -50,6 +53,9 @@ namespace HouseholdBudget.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ParentName", "Name")
+                        .IsUnique();
 
                     b.ToTable("Categories");
                 });
@@ -87,6 +93,10 @@ namespace HouseholdBudget.Migrations
 
                     b.Property<string>("ReceiptUrl")
                         .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT")
+                        .IsConcurrencyToken();
 
                     b.Property<string>("UserId")
                         .HasColumnType("TEXT");

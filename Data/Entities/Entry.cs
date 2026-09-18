@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HouseholdBudget.Data.Entities;
 
 public class Entry
@@ -21,4 +23,6 @@ public class Entry
     public decimal Amount { get; set; }
     public string? ReceiptUrl { get; set; }         // 서버 파일 경로
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    [ConcurrencyCheck]
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
