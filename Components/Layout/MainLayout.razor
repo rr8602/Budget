@@ -114,6 +114,7 @@
         var isDark = saved == "dark";
         await JS.InvokeVoidAsync("themeInterop.setDark", isDark);
 
+        await JS.InvokeVoidAsync("themeInterop.blurActive");
         _canInstall = await JS.InvokeAsync<bool>("pwaInterop.canInstall");
 
         if (_isDarkMode != isDark || _canInstall)

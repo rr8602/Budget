@@ -1,4 +1,12 @@
 window.themeInterop = {
+    blurActive: function () {
+        // Blazor 하이드레이션 후 자동 포커스된 요소를 blur
+        // setTimeout(0): Blazor의 포커스 복원이 끝난 뒤 실행 보장
+        setTimeout(function () {
+            if (document.activeElement && document.activeElement !== document.body)
+                document.activeElement.blur();
+        }, 0);
+    },
     getSystemDark: function () {
         return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     },
