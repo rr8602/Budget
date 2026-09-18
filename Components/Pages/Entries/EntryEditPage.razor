@@ -14,14 +14,10 @@ else
 {
     <div class="form-layout entry-form-page">
 
-        @* ── Sticky 헤더 ── *@
-        <div class="form-header-sticky">
-            <div style="flex:1;">
-                <div class="page-overline">EDIT ENTRY</div>
-                <div class="page-title" style="font-size:1.1rem;">지출 수정</div>
-            </div>
+        @* ── 삭제 버튼 ── *@
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
             <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline"
-                           Color="Color.Error" OnClick="DeleteAsync" />
+                           Color="Color.Error" OnClick="DeleteAsync" Size="Size.Small" />
         </div>
 
         @* ── 날짜 + 금액 ── *@
