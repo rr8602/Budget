@@ -8,7 +8,9 @@ using MudBlazor.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddCircuitOptions(o =>
+        o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(30));
 
 // MudBlazor
 builder.Services.AddMudServices();

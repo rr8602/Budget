@@ -31,11 +31,18 @@ public class EntryService(AppDbContext db)
 
     public async Task<Entry?> GetByIdAsync(Guid id)
     {
-        return await db.Entries
-            .Include(e => e.Category)
-            .Include(e => e.Payer)
-            .Include(e => e.PaymentMethod)
-            .FirstOrDefaultAsync(e => e.Id == id);
+        // FindAsync: 추적 목록(GetMonthlyAsync가 채워둠) 먼저 확인, 없으면 DB 조회
+        var entry = await db.Entries.FindAsync(id);
+        if (entry is null) return null;
+
+        if (entry.Category is null)
+            await db.Entry(entry).Reference(e => e.Category).LoadAsync();
+        if (entry.Payer is null)
+            await db.Entry(entry).Reference(e => e.Payer).LoadAsync();
+        if (entry.PaymentMethod is null)
+            await db.Entry(entry).Reference(e => e.PaymentMethod).LoadAsync();
+
+        return entry;
     }
 
     public async Task<bool> CreateAsync(Entry entry)
