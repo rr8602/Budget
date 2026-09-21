@@ -13,25 +13,29 @@ public record FixedActualStatus(
     public bool    IsUnconfirmed => !Actual.HasValue;
 }
 
-public class FixedItemService(AppDbContext db)
+public class FixedItemService(IDbContextFactory<AppDbContext> factory)
 {
     public async Task<List<FixedItem>> GetAllAsync()
-        => await db.FixedItems
+    {
+        await using var db = factory.CreateDbContext();
+        return await db.FixedItems
             .Include(f => f.Category)
             .OrderBy(f => f.GroupType)
             .ThenBy(f => f.Name)
             .ToListAsync();
+    }
 
     public async Task<decimal> GetTotalAsync()
     {
-        var amounts = await db.FixedItems.Select(f => f.Amount).ToListAsync();
-        return amounts.Sum();
+        await using var db = factory.CreateDbContext();
+        return await db.FixedItems.SumAsync(f => f.Amount);
     }
 
     public async Task<bool> CreateAsync(FixedItem item)
     {
         try
         {
+            await using var db = factory.CreateDbContext();
             db.FixedItems.Add(item);
             await db.SaveChangesAsync();
             return true;
@@ -41,10 +45,17 @@ public class FixedItemService(AppDbContext db)
 
     public async Task<List<FixedActualStatus>> GetShortfallStatusAsync(int year, int month)
     {
-        var items   = await GetAllAsync();
+        await using var db = factory.CreateDbContext();
+        var items = await db.FixedItems
+            .Include(f => f.Category)
+            .OrderBy(f => f.GroupType)
+            .ThenBy(f => f.Name)
+            .ToListAsync();
+
         var actuals = await db.MonthlyFixedActuals
             .Where(a => a.Year == year && a.Month == month)
             .ToListAsync();
+
         var map = actuals.ToDictionary(a => a.FixedItemId, a => a.ActualAmount);
         return items.Select(f => new FixedActualStatus(
             f.Id, f.GroupType, f.Owner, f.Name, f.Amount,
@@ -55,6 +66,7 @@ public class FixedItemService(AppDbContext db)
     {
         try
         {
+            await using var db = factory.CreateDbContext();
             var existing = await db.MonthlyFixedActuals
                 .FirstOrDefaultAsync(a => a.FixedItemId == fixedItemId
                                        && a.Year == year && a.Month == month);
@@ -73,6 +85,7 @@ public class FixedItemService(AppDbContext db)
     {
         try
         {
+            await using var db = factory.CreateDbContext();
             var item = await db.FixedItems.FindAsync(id);
             if (item is null) return null;
             db.FixedItems.Remove(item);

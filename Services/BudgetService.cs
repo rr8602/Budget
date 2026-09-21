@@ -18,14 +18,13 @@ public record BudgetEditRow(string CategoryParentName, decimal FixedTotal, decim
     public decimal Remaining   => TotalBudget - Actual;
 }
 
-public class BudgetService(AppDbContext db)
+public class BudgetService(IDbContextFactory<AppDbContext> factory)
 {
     // 대분류별 월 예산 = FixedItems 합산 + Budgets.MonthlyExtra
     public async Task<Dictionary<string, decimal>> GetMonthlyBudgetAsync()
     {
-        var fixedItems = await db.FixedItems
-            .Include(f => f.Category)
-            .ToListAsync();
+        await using var db = factory.CreateDbContext();
+        var fixedItems = await db.FixedItems.Include(f => f.Category).ToListAsync();
 
         var fromFixed = fixedItems
             .GroupBy(f => f.Category.ParentName)
@@ -46,6 +45,7 @@ public class BudgetService(AppDbContext db)
     // 예산 편집 행 목록 (모든 대분류 + 이달 실지출)
     public async Task<List<BudgetEditRow>> GetBudgetEditRowsAsync(int year, int month)
     {
+        await using var db = factory.CreateDbContext();
         var parentNames = await db.Categories
             .Select(c => c.ParentName).Distinct().OrderBy(n => n).ToListAsync();
 
@@ -78,6 +78,7 @@ public class BudgetService(AppDbContext db)
     {
         try
         {
+            await using var db = factory.CreateDbContext();
             var existing = await db.Budgets
                 .FirstOrDefaultAsync(b => b.CategoryParentName == categoryParentName);
             if (existing is null)
@@ -95,6 +96,7 @@ public class BudgetService(AppDbContext db)
     {
         var budgets = await GetMonthlyBudgetAsync();
 
+        await using var db = factory.CreateDbContext();
         var monthEntries = await db.Entries
             .Include(e => e.Category)
             .Where(e => e.Date.Year == year && e.Date.Month == month)

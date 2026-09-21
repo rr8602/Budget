@@ -15,8 +15,8 @@ builder.Services.AddRazorComponents()
 // MudBlazor
 builder.Services.AddMudServices();
 
-// EF Core + SQLite
-builder.Services.AddDbContext<AppDbContext>(options =>
+// EF Core + SQLite (Factory: 메서드마다 단수명 DbContext 생성·폐기 → Blazor Server 추적 목록 문제 없음)
+builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Services
@@ -46,7 +46,8 @@ if (app.Environment.IsProduction())
 // DB 마이그레이션 및 초기 데이터 적용
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+    await using var db = dbFactory.CreateDbContext();
     db.Database.Migrate();
     await DataSeeder.SeedAsync(db);
 }
