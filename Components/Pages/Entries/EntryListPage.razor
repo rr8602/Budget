@@ -176,6 +176,8 @@
             _fixedTotal   = cached.FixedTotal;
             AssignColors();
             _initialized  = true;
+            // scope B DbContext 추적 캐시 채우기 → FindAsync가 DB 없이 동작 (새로고침 후 카드 클릭 시 redirect 방지)
+            await EntrySvc.GetMonthlyAsync(_year, _month);
             return;
         }
         await LoadAsync(showSpinner: false);
