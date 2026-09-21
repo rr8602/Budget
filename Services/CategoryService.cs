@@ -21,6 +21,11 @@ public class CategoryService(AppDbContext db)
         return await db.Categories.Where(c => c.ParentName == parentName).OrderBy(c => c.Name).ToListAsync();
     }
 
+    public async Task<string?> GetParentNameByIdAsync(int id)
+    {
+        return await db.Categories.Where(c => c.Id == id).Select(c => c.ParentName).FirstOrDefaultAsync();
+    }
+
     public async Task<bool> CreateAsync(string parentName, string name)
     {
         try

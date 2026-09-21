@@ -28,13 +28,12 @@
         </div>
 
         <MudSpacer />
-        @if (_canInstall)
-        {
+        <div id="pwa-install-btn-wrap" hidden="@(!_canInstall)">
             <MudTooltip Text="앱 설치">
                 <MudIconButton Color="Color.Inherit" Icon="@Icons.Material.Filled.InstallMobile"
                                OnClick="InstallPwa" />
             </MudTooltip>
-        }
+        </div>
         <MudTooltip Text="@(_isDarkMode ? "라이트 모드" : "다크 모드")">
             <MudIconButton Color="Color.Inherit"
                            Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"

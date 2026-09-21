@@ -25,6 +25,9 @@
         window.addEventListener('beforeinstallprompt', function(e) {
             e.preventDefault();
             window._pwaInstallPrompt = e;
+            // Blazor 회로 연결 전에 DOM에서 직접 버튼을 노출 (1초 딜레이 방지)
+            var btn = document.getElementById('pwa-install-btn-wrap');
+            if (btn) btn.removeAttribute('hidden');
         });
     </script>
 </head>
