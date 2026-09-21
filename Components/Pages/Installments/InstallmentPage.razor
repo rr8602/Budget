@@ -75,10 +75,15 @@ else
     }
 }
 
+<MudMessageBox @ref="_deleteBox" Title="삭제 확인" YesText="삭제" CancelText="취소">
+    <MessageContent>삭제하시겠습니까?</MessageContent>
+</MudMessageBox>
+
 @code {
     private List<Installment> _activeList    = [];
     private List<Installment> _completedList = [];
     private bool _loading = true;
+    private MudMessageBox? _deleteBox;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -119,6 +124,7 @@ else
 
     private async Task DeleteAsync(int id)
     {
+        if (await _deleteBox!.ShowAsync() != true) return;
         var result = await InstallmentService.DeleteAsync(id);
         if (result == true)  { Snackbar.Add("삭제되었습니다.", Severity.Info); await LoadAsync(); }
         else if (result == null) { Snackbar.Add("이미 삭제된 항목입니다.", Severity.Warning); await LoadAsync(); }

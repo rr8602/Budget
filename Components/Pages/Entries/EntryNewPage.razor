@@ -63,7 +63,6 @@
     private int       _paymentMethodId;
     private string    _content    = "";
     private string?   _memo;
-    private string?   _receiptUrl;
     private bool      _saving;
 
     private List<HouseholdBudget.Data.Entities.Payer>         _payers  = [];
@@ -92,7 +91,6 @@
                 PaymentMethodId = _paymentMethodId,
                 Content         = _content.Trim(),
                 Memo            = string.IsNullOrWhiteSpace(_memo) ? null : _memo.Trim(),
-                ReceiptUrl      = _receiptUrl
             };
             var ok = await EntrySvc.CreateAsync(entry);
             if (ok) { Snackbar.Add("저장되었습니다.", Severity.Success); Nav.NavigateTo("/entries"); }

@@ -25,6 +25,13 @@
     </MudButton>
 </div>
 
+@if (!_initialized)
+{
+    <div class="panel">
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Rounded="true" />
+    </div>
+}
+
 @if (_initialized)
 {
     @if (_loading)
@@ -306,13 +313,21 @@
         _loading = true;
         StateHasChanged();
 
-        _entries        = await EntryService.GetMonthlyAsync(_year, _month);
-        _budgetStatuses = await BudgetService.GetBudgetStatusAsync(_year, _month);
-        var byCategory  = await EntryService.GetMonthlyTotalByCategoryAsync(_year, _month);
-        var cumulative  = await EntryService.GetDailyCumulativeAsync(_year, _month);
+        // 6개 쿼리 병렬 실행 (각자 독립 DbContext 사용 → 안전)
+        var t1 = EntryService.GetMonthlyAsync(_year, _month);
+        var t2 = BudgetService.GetBudgetStatusAsync(_year, _month);
+        var t3 = EntryService.GetMonthlyTotalByCategoryAsync(_year, _month);
+        var t4 = EntryService.GetDailyCumulativeAsync(_year, _month);
+        var t5 = FixedItemSvc.GetShortfallStatusAsync(_year, _month);
+        var t6 = FixedItemSvc.GetTotalAsync();
+        await Task.WhenAll(t1, t2, t3, t4, t5, t6);
 
-        _fixedStatuses  = await FixedItemSvc.GetShortfallStatusAsync(_year, _month);
-        _fixedTotal     = await FixedItemSvc.GetTotalAsync();
+        _entries        = t1.Result;
+        _budgetStatuses = t2.Result;
+        var byCategory  = t3.Result;
+        var cumulative  = t4.Result;
+        _fixedStatuses  = t5.Result;
+        _fixedTotal     = t6.Result;
         _totalActual    = _entries.Sum(e => e.Amount) + _fixedTotal;
         _totalBudget    = _budgetStatuses.Sum(s => s.Budget);
         _budgetUsagePct = _totalBudget > 0

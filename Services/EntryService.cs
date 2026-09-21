@@ -34,11 +34,10 @@ public class EntryService(IDbContextFactory<AppDbContext> factory)
     public async Task<Entry?> GetByIdAsync(Guid id)
     {
         await using var db = factory.CreateDbContext();
+        // SQLite TEXT 비교는 대소문자 구분 → 구 데이터에 대문자 GUID 있을 수 있어 UPPER() 사용
         return await db.Entries
-            .Include(e => e.Category)
-            .Include(e => e.Payer)
-            .Include(e => e.PaymentMethod)
-            .FirstOrDefaultAsync(e => e.Id == id);
+            .FromSqlRaw("SELECT * FROM \"Entries\" WHERE UPPER(\"Id\") = UPPER({0})", id.ToString("D"))
+            .FirstOrDefaultAsync();
     }
 
     public async Task<bool> CreateAsync(Entry entry)

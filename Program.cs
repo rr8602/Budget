@@ -13,7 +13,13 @@ builder.Services.AddRazorComponents()
         o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(30));
 
 // MudBlazor
-builder.Services.AddMudServices();
+builder.Services.AddMudServices(config =>
+{
+    config.SnackbarConfiguration.PositionClass      = "mud-snackbar-location-top-center";
+    config.SnackbarConfiguration.VisibleStateDuration   = 2000;
+    config.SnackbarConfiguration.ShowTransitionDuration = 200;
+    config.SnackbarConfiguration.HideTransitionDuration = 200;
+});
 
 // EF Core + SQLite (Factory: 메서드마다 단수명 DbContext 생성·폐기 → Blazor Server 추적 목록 문제 없음)
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
@@ -27,6 +33,7 @@ builder.Services.AddScoped<BudgetService>();
 builder.Services.AddScoped<InstallmentService>();
 builder.Services.AddScoped<FixedItemService>();
 
+var warmedUp = false;
 var app = builder.Build();
 
 // Production: 기존 DB를 /data 볼륨으로 이전 (최초 1회)
@@ -52,6 +59,25 @@ using (var scope = app.Services.CreateScope())
     await DataSeeder.SeedAsync(db);
 }
 
+// 전체 JIT 워밍업: 앱 시작 후 자신에게 HTTP 요청 → Blazor 렌더링·EF Core·MudBlazor 전체 JIT
+// ApplicationStarted 이후 백그라운드 실행 → 서버 기동을 막지 않음
+app.Lifetime.ApplicationStarted.Register(() => _ = Task.Run(async () =>
+{
+    try
+    {
+        await Task.Delay(1000); // 서버 완전 바인딩 대기
+        var rawUrl  = app.Urls.FirstOrDefault() ?? "http://localhost:8080";
+        var baseUrl = rawUrl
+            .Replace("://+:",       "://localhost:")
+            .Replace("://0.0.0.0:", "://localhost:")
+            .Replace("://[::]:",    "://localhost:");
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        await http.GetAsync(baseUrl); // 대시보드 전체 SSR 렌더링 → 모든 JIT 완료
+    }
+    catch { /* 워밍업 실패는 무시 */ }
+    finally { warmedUp = true; } // 성공·실패 무관 트래픽 수신 허용
+}));
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -63,50 +89,13 @@ if (app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 
 app.UseStaticFiles();
-
-// 업로드 파일 서빙: UploadPath 환경변수가 있으면 Persistent Volume 경로 사용
-var uploadBasePath = app.Configuration["UploadPath"];
-if (!string.IsNullOrEmpty(uploadBasePath))
-{
-    Directory.CreateDirectory(uploadBasePath);
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadBasePath),
-        RequestPath = "/uploads"
-    });
-}
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-// 영수증 이미지 업로드 엔드포인트
-app.MapPost("/api/receipts/upload", async (IFormFile file, IWebHostEnvironment env, IConfiguration cfg) =>
-{
-    if (file is null || file.Length == 0)
-        return Results.BadRequest("파일이 없습니다.");
-
-    const long maxSize = 5 * 1024 * 1024;
-    if (file.Length > maxSize)
-        return Results.BadRequest("파일 크기는 5MB 이하만 가능합니다.");
-
-    var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-    if (ext is not (".jpg" or ".jpeg" or ".png" or ".gif" or ".webp"))
-        return Results.BadRequest("이미지 파일만 가능합니다.");
-
-    var basePath = cfg["UploadPath"] ?? Path.Combine(env.WebRootPath, "uploads");
-    var uploadDir = Path.Combine(basePath, "receipts");
-    Directory.CreateDirectory(uploadDir);
-
-    var fileName = $"{Guid.NewGuid()}{ext}";
-    var filePath = Path.Combine(uploadDir, fileName);
-
-    await using var stream = File.Create(filePath);
-    await file.CopyToAsync(stream);
-
-    return Results.Ok($"/uploads/receipts/{fileName}");
-})
-.DisableAntiforgery();
+// 워밍업 완료 여부를 Fly.io health check에 노출
+app.MapGet("/health", () => warmedUp ? Results.Ok("ok") : Results.StatusCode(503));
 
 app.Run();
 

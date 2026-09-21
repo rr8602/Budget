@@ -13,14 +13,24 @@ public class Installment
     public decimal MonthlyAmount => Months > 0 ? TotalAmount / Months : 0;
 
     // 남은 개월 (오늘 기준 자동 계산)
+    // 같은 달이면 이번 달 납입이 남아 있으므로 +1 포함
     public int RemainingMonths
     {
         get
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
             if (today > LastPayDate) return 0;
-            var months = ((LastPayDate.Year - today.Year) * 12) + LastPayDate.Month - today.Month;
-            return Math.Max(0, months);
+            return ((LastPayDate.Year - today.Year) * 12) + LastPayDate.Month - today.Month + 1;
+        }
+    }
+
+    // 오늘 ~ 만기일까지 남은 일수 (마지막 달일 때 일 단위 표시용)
+    public int RemainingDays
+    {
+        get
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            return today > LastPayDate ? 0 : LastPayDate.DayNumber - today.DayNumber;
         }
     }
 

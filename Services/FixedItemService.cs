@@ -28,7 +28,8 @@ public class FixedItemService(IDbContextFactory<AppDbContext> factory)
     public async Task<decimal> GetTotalAsync()
     {
         await using var db = factory.CreateDbContext();
-        return await db.FixedItems.SumAsync(f => f.Amount);
+        var amounts = await db.FixedItems.Select(f => f.Amount).ToListAsync();
+        return amounts.Sum();
     }
 
     public async Task<bool> CreateAsync(FixedItem item)

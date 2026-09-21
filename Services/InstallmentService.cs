@@ -37,7 +37,7 @@ public class InstallmentService(IDbContextFactory<AppDbContext> factory)
         catch { return false; }
     }
 
-    public async Task<bool?> DeleteAsync(Guid id)
+    public async Task<bool?> DeleteAsync(int id)
     {
         try
         {

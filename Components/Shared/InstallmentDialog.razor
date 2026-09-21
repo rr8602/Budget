@@ -1,11 +1,11 @@
 @* 할부 추가/수정 다이얼로그 *@
 
-<MudDialog Style="min-width:420px;max-width:480px;">
+<MudDialog Style="min-width:300px;max-width:400px;">
     <TitleContent>
-        <div style="display:flex;align-items:center;gap:14px;">
+        <div style="display:flex;align-items:center;gap:10px;">
             <div class="inst-dialog-icon-wrap">
                 <MudIcon Icon="@Icons.Material.Filled.CreditCard"
-                         Style="color:white;font-size:22px;" />
+                         Style="color:white;font-size:18px;" />
             </div>
             <div>
                 <div class="inst-dialog-overline">
@@ -18,7 +18,7 @@
         </div>
     </TitleContent>
     <DialogContent>
-        <div style="display:flex;flex-direction:column;gap:14px;padding-top:4px;">
+        <div style="display:flex;flex-direction:column;gap:8px;padding-top:2px;">
 
             <MudTextField Label="항목명" @bind-Value="_model.Name"
                           Variant="Variant.Outlined" Margin="Margin.Dense"
@@ -50,7 +50,7 @@
             <MudDatePicker Label="마지막 납입월"
                            Date="_lastPayDateTime"
                            DateChanged="OnDateChanged"
-                           OpenTo="OpenTo.Month"
+                           OpenTo="OpenTo.Date"
                            Variant="Variant.Outlined" Margin="Margin.Dense" />
 
             @* 월 납입 미리보기 *@

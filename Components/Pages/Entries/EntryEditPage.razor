@@ -3,6 +3,7 @@
 @inject LookupService        LookupSvc
 @inject NavigationManager    Nav
 @inject ISnackbar            Snackbar
+@inject IJSRuntime           JS
 
 <PageTitle>지출 수정</PageTitle>
 
@@ -64,6 +65,13 @@
     </div>
 }
 
+<MudMessageBox @ref="_saveBox" Title="수정 확인" YesText="수정" CancelText="취소">
+    <MessageContent>수정하시겠습니까?</MessageContent>
+</MudMessageBox>
+<MudMessageBox @ref="_deleteBox" Title="삭제 확인" YesText="삭제" CancelText="취소">
+    <MessageContent>삭제하시겠습니까?</MessageContent>
+</MudMessageBox>
+
 @code {
     [Parameter] public Guid Id { get; set; }
 
@@ -75,11 +83,18 @@
     private int       _paymentMethodId;
     private string    _content    = "";
     private string?   _memo;
-    private string?   _receiptUrl;
     private bool      _saving;
 
     private List<HouseholdBudget.Data.Entities.Payer>         _payers  = [];
     private List<HouseholdBudget.Data.Entities.PaymentMethod> _methods = [];
+    private MudMessageBox? _saveBox;
+    private MudMessageBox? _deleteBox;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -98,12 +113,12 @@
         _paymentMethodId = _entry.PaymentMethodId;
         _content         = _entry.Content;
         _memo            = _entry.Memo;
-        _receiptUrl      = _entry.ReceiptUrl;
     }
 
     private async Task SaveAsync()
     {
         if (_amount <= 0 || _categoryId is null) return;
+        if (await _saveBox!.ShowAsync() != true) return;
         _saving = true;
         try
         {
@@ -114,7 +129,6 @@
             _entry.PaymentMethodId = _paymentMethodId;
             _entry.Content         = _content.Trim();
             _entry.Memo            = string.IsNullOrWhiteSpace(_memo) ? null : _memo.Trim();
-            _entry.ReceiptUrl      = _receiptUrl;
 
             var result = await EntrySvc.UpdateAsync(_entry);
             if (result == true)  { Snackbar.Add("수정되었습니다.", Severity.Success); Nav.NavigateTo("/entries"); }
@@ -126,6 +140,7 @@
 
     private async Task DeleteAsync()
     {
+        if (await _deleteBox!.ShowAsync() != true) return;
         var result = await EntrySvc.DeleteAsync(Id);
         if (result == true)  { Snackbar.Add("삭제되었습니다.", Severity.Info);    Nav.NavigateTo("/entries"); }
         else if (result == null) { Snackbar.Add("이미 삭제된 항목입니다.", Severity.Warning); Nav.NavigateTo("/entries"); }

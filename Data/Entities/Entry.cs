@@ -21,7 +21,6 @@ public class Entry
     public string Content { get; set; } = "";       // 내용/상호명
     public string? Memo { get; set; }
     public decimal Amount { get; set; }
-    public string? ReceiptUrl { get; set; }         // 서버 파일 경로
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     [ConcurrencyCheck]
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

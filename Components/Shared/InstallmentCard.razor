@@ -49,9 +49,11 @@
     @* ── 2열 통계 ── *@
     <div class="inst-stats">
         <div class="inst-stat">
-            <span class="inst-stat-label">남은 개월</span>
+            <span class="inst-stat-label">남은 기간</span>
             <span class="inst-stat-value">
-                @(Item.IsCompleted ? "완납" : $"{Item.RemainingMonths}개월")
+                @(Item.IsCompleted   ? "완납" :
+                  Item.RemainingMonths == 1 ? $"D-{Item.RemainingDays}" :
+                  $"{Item.RemainingMonths}개월")
             </span>
         </div>
         <div class="inst-stat inst-stat-right">
