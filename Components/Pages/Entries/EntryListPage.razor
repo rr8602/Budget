@@ -2,8 +2,6 @@
 @inject EntryService            EntrySvc
 @inject FixedItemService        FixedItemSvc
 @inject NavigationManager       Nav
-@using Microsoft.Extensions.Caching.Memory
-@inject IMemoryCache            Cache
 
 <PageTitle>지출 내역</PageTitle>
 
@@ -144,10 +142,6 @@
 } @* /_initialized *@
 
 @code {
-    private record CachedEntries(List<Entry> Entries, decimal MonthlyTotal, decimal FixedTotal);
-    private static string CacheKey(int y, int m) => $"entry-list-{y}-{m}";
-
-    // ── 상태 ──
     private int         _year        = DateTime.Today.Year;
     private int         _month       = DateTime.Today.Month;
     private List<Entry> _entries     = [];
@@ -167,21 +161,7 @@
     private readonly Dictionary<string, string> _colorMap = [];
 
     protected override async Task OnInitializedAsync()
-    {
-        // 캐시 HIT → await 없이 동기적으로 즉시 복원 (SSR·Blazor 양쪽 모두 같은 서버 프로세스)
-        if (Cache.TryGetValue(CacheKey(_year, _month), out CachedEntries? cached) && cached is not null)
-        {
-            _entries      = cached.Entries;
-            _monthlyTotal = cached.MonthlyTotal;
-            _fixedTotal   = cached.FixedTotal;
-            AssignColors();
-            _initialized  = true;
-            // scope B DbContext 추적 캐시 채우기 → FindAsync가 DB 없이 동작 (새로고침 후 카드 클릭 시 redirect 방지)
-            await EntrySvc.GetMonthlyAsync(_year, _month);
-            return;
-        }
-        await LoadAsync(showSpinner: false);
-    }
+        => await LoadAsync(showSpinner: false);
 
     private async Task PrevMonth()
     {
@@ -210,8 +190,6 @@
         _loading     = false;
         _initialized = true;
         _renderKey++;
-        Cache.Set(CacheKey(_year, _month), new CachedEntries(_entries, _monthlyTotal, _fixedTotal),
-                  TimeSpan.FromSeconds(30));
     }
 
     private void AssignColors()

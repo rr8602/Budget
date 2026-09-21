@@ -31,19 +31,11 @@ public class EntryService(AppDbContext db)
 
     public async Task<Entry?> GetByIdAsync(Guid id)
     {
-        // FindAsync: 같은 circuit에서 GetMonthlyAsync로 이미 추적 중인 경우 DB 쿼리 없이 반환
-        // 추적 캐시에 없을 때만 DB 쿼리 (새로고침 후에도 ASPNETCORE_ENVIRONMENT=Production이면 정상 동작)
-        var entry = await db.Entries.FindAsync(id);
-        if (entry is null) return null;
-
-        if (entry.Category is null)
-            await db.Entry(entry).Reference(e => e.Category).LoadAsync();
-        if (entry.Payer is null)
-            await db.Entry(entry).Reference(e => e.Payer).LoadAsync();
-        if (entry.PaymentMethod is null)
-            await db.Entry(entry).Reference(e => e.PaymentMethod).LoadAsync();
-
-        return entry;
+        return await db.Entries
+            .Include(e => e.Category)
+            .Include(e => e.Payer)
+            .Include(e => e.PaymentMethod)
+            .FirstOrDefaultAsync(e => e.Id == id);
     }
 
     public async Task<bool> CreateAsync(Entry entry)
