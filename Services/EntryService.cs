@@ -56,8 +56,8 @@ public class EntryService(AppDbContext db)
     {
         try
         {
-            // 추적 중인 엔티티에 Update()를 재호출하면 EF 원본값 스냅샷이 꼬여
-            // ConcurrencyCheck WHERE절이 실패함 → detached일 때만 Update()로 부착
+            // GetByIdAsync가 FirstOrDefaultAsync를 쓰므로 엔티티는 항상 추적 상태
+            // detached 분기는 안전망 (정상 흐름에서는 실행되지 않음)
             if (db.Entry(entry).State == EntityState.Detached)
                 db.Entries.Update(entry);
             entry.UpdatedAt = DateTime.UtcNow;
