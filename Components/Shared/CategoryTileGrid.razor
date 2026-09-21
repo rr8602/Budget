@@ -47,15 +47,24 @@
     protected override async Task OnInitializedAsync()
     {
         _parentNames = await CategorySvc.GetParentNamesAsync();
+
+        // 첫 렌더 전에 기본 카테고리 미리 로드 → 빈 상태 플래시 방지
+        if (_parentNames.Count > 0)
+        {
+            var defaults = await CategorySvc.GetByParentAsync(_parentNames[0]);
+            _recentCats = defaults.Take(4)
+                .Select(c => new RecentCat(c.Id, _parentNames[0], c.Name))
+                .ToList();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        await LoadRecentAsync();
+        await LoadRecentFromStorageAsync();
     }
 
-    private async Task LoadRecentAsync()
+    private async Task LoadRecentFromStorageAsync()
     {
         try
         {
@@ -67,16 +76,7 @@
             }
         }
         catch { }
-
-        // 최근 사용 내역 없으면 첫 번째 대분류의 소분류 최대 4개를 기본 표시
-        if (_parentNames.Count > 0)
-        {
-            var defaults = await CategorySvc.GetByParentAsync(_parentNames[0]);
-            _recentCats = defaults.Take(4)
-                .Select(c => new RecentCat(c.Id, _parentNames[0], c.Name))
-                .ToList();
-            StateHasChanged();
-        }
+        // localStorage에 없으면 OnInitializedAsync에서 로드한 기본값 유지 (StateHasChanged 불필요)
     }
 
     private async Task SelectQuickAsync(RecentCat cat)
