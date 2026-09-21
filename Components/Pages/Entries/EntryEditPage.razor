@@ -6,16 +6,14 @@
 
 <PageTitle>지출 수정</PageTitle>
 
-@if (_entry is null)
-{
-    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Rounded="true" />
-}
-else
+@if (_entry is not null)
 {
     <div class="form-layout entry-form-page">
 
-        @* ── 삭제 버튼 ── *@
-        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+        @* ── 뒤로가기 / 삭제 버튼 ── *@
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                           OnClick='() => Nav.NavigateTo("/entries")' Size="Size.Small" />
             <MudIconButton Icon="@Icons.Material.Outlined.DeleteOutline"
                            Color="Color.Error" OnClick="DeleteAsync" Size="Size.Small" />
         </div>

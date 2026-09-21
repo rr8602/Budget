@@ -5,6 +5,14 @@
 /* ── 기본 ── */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* 로딩 스피너: 120ms 이내 로드 완료시 사용자에게 보이지 않도록 딜레이
+   (indeterminate 회전 바만 적용, 예산 진행 바는 제외) */
+@keyframes delayfade { to { opacity: 1; } }
+.mud-progress-linear-indeterminate {
+    opacity: 0;
+    animation: delayfade 0.08s 0.12s both;
+}
+
 /* 마우스/터치로 포커스 시 outline 제거 (키보드 탐색은 유지) */
 :focus:not(:focus-visible) { outline: none !important; }
 

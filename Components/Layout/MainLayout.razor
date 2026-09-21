@@ -68,7 +68,7 @@
         => Nav.LocationChanged -= OnLocationChanged;
 
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
-        => await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+        => await JS.InvokeVoidAsync("window.scrollTo", new { top = 0, behavior = "instant" });
 
     private readonly MudTheme _theme = new()
     {
