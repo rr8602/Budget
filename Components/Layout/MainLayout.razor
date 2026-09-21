@@ -1,5 +1,7 @@
 @inherits LayoutComponentBase
 @inject IJSRuntime JS
+@inject NavigationManager Nav
+@implements IDisposable
 
 <MudThemeProvider Theme="_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -58,6 +60,15 @@
     private bool _drawerOpen = true;
     private bool _isDarkMode;
     private bool _canInstall;
+
+    protected override void OnInitialized()
+        => Nav.LocationChanged += OnLocationChanged;
+
+    public void Dispose()
+        => Nav.LocationChanged -= OnLocationChanged;
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+        => await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
 
     private readonly MudTheme _theme = new()
     {

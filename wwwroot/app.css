@@ -381,6 +381,8 @@ body.hb-dark .hb-table .mud-table-foot td {
     background: var(--mud-palette-surface);
     border: 1px solid var(--mud-palette-divider);
     border-radius: 12px;
+    user-select: none;
+    -webkit-user-select: none;
     padding: 14px 16px;
     cursor: pointer;
     transition: transform 0.14s ease, box-shadow 0.14s ease;
