@@ -64,8 +64,11 @@ public class EntryService(AppDbContext db)
     {
         try
         {
-            db.Entries.Update(entry);
-            entry.UpdatedAt = DateTime.UtcNow;  // Update() 호출 후 변경 → EF가 original/current 구분
+            // 추적 중인 엔티티에 Update()를 재호출하면 EF 원본값 스냅샷이 꼬여
+            // ConcurrencyCheck WHERE절이 실패함 → detached일 때만 Update()로 부착
+            if (db.Entry(entry).State == EntityState.Detached)
+                db.Entries.Update(entry);
+            entry.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
             return true;
         }
